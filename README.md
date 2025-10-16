@@ -16,9 +16,25 @@ git clone <url-do-repositorio>
 cd career-path-backend
 ```
 
-### 2. Configure o ambiente virtual
+### 2. Instalar o gerenciador de pacotes uv
+#### No Linux/Mac
 ```bash
-python -m venv .venv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+#### No Windows 
+```bash
+irm https://astral.sh/uv/install.ps1 | iex
+```
+
+#### Em seguida, verifique se o uv foi instalado corretamente:
+```bash
+uv --version
+```
+
+### 3. Instalar as dependências e ativar ambiente virtual
+```bash
+uv sync
 ```
 
 #### No Windows:
@@ -29,11 +45,6 @@ python -m venv .venv
 #### No Linux/Mac:
 ```bash
 source .venv/bin/activate
-```
-
-### 3. Instale as dependências
-```bash
-pip install -r requirements.txt
 ```
 
 ### 4. Configure as variáveis de ambiente
