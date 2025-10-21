@@ -1,6 +1,41 @@
 from app.utils.utils import extract_json_from_text, local_resume_analysis
 from app.core.config import settings
 import google.generativeai as genai
+from PyPDF2 import PdfReader
+import io
+
+
+async def analyze_resume_service(file_contents: bytes, filename: str) -> dict:
+    """
+    Service para análise de currículo
+    """
+    # Lê e extrai texto do PDF
+    if len(file_contents) == 0:
+        raise ValueError("O arquivo está vazio")
+
+    pdf_file = io.BytesIO(file_contents)
+    reader = PdfReader(pdf_file)
+
+    if reader.is_encrypted:
+        raise ValueError("PDF criptografado não é suportado")
+
+    text = ""
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text + "\n"
+
+    if not text.strip():
+        raise ValueError("Nenhum texto foi encontrado no PDF")
+
+    # Analisa o currículo com Gemini
+    analysis_result = await analyze_with_gemini(text)
+
+    return {
+        "filename": filename,
+        "total_pages": len(reader.pages),
+        "analysis": analysis_result,
+    }
 
 
 async def analyze_with_gemini(resume_text: str) -> dict:
@@ -19,8 +54,7 @@ async def analyze_with_gemini(resume_text: str) -> dict:
         "professional_summary": "Resumo profissional em 2-3 frases",
         "experience_level": "Júnior | Pleno | Sênior | Especialista",
         "technical_skills": {
-            "programming_lendations": [
-            "Aprofundar conhecimentos em arquitetura de sistemas distribuídos.",anguages": ["lista de linguagens encontradas"],
+            "programming_languages": ["lista de linguagens encontradas"],
             "frameworks": ["lista de frameworks encontrados"],
             "tools": ["lista de ferramentas encontradas"],
             "databases": ["lista de bancos de dados encontrados"],
