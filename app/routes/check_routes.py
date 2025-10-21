@@ -23,7 +23,7 @@ async def list_models():
     
 
 @check_router.get("/")
-async def root():
+async def healthcheck():
     """
     Rota para fazer o healthcheck e obter informações gerais da API.
     """
