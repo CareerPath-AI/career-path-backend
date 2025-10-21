@@ -1,8 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
-from PyPDF2 import PdfReader
-from app.services.analyze_services import analyze_with_gemini
-import io
+from app.services.analyze_services import analyze_resume_service
 
 analyze_resume_router = APIRouter(prefix="/analyze-resume", tags=["analyze-resume"])
 
@@ -16,44 +14,16 @@ async def analyze_resume(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF")
 
     try:
-        # Lê e extrai texto do PDF
+        # Lê o conteúdo do arquivo
         contents = await file.read()
+        
+        # Chama o service para processar a análise
+        result = await analyze_resume_service(contents, file.filename)
+        
+        return JSONResponse(result)
 
-        if len(contents) == 0:
-            raise HTTPException(status_code=400, detail="O arquivo está vazio")
-
-        pdf_file = io.BytesIO(contents)
-        reader = PdfReader(pdf_file)
-
-        if reader.is_encrypted:
-            raise HTTPException(
-                status_code=400, detail="PDF criptografado não é suportado"
-            )
-
-        text = ""
-        for page in reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
-
-        if not text.strip():
-            raise HTTPException(
-                status_code=400, detail="Nenhum texto foi encontrado no PDF"
-            )
-
-        # Analisa o currículo com Gemini
-        analysis_result = await analyze_with_gemini(text)
-
-        return JSONResponse(
-            {
-                "filename": file.filename,
-                "total_pages": len(reader.pages),
-                "analysis": analysis_result,
-            }
-        )
-
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Erro ao processar o currículo: {str(e)}"
