@@ -110,12 +110,12 @@ async def generate_interview_guide_with_gemini(resume_text: str, job_description
     print(f"Resposta bruta do Gemini: {response_text}")
     
     # Extrai JSON da resposta
-    parsed_response = extract_json_from_text(response_text)
+    parsed_response = extract_interview_json_from_text(response_text)
     
     return parsed_response
 
 
-def extract_json_from_text(text: str) -> dict:
+def extract_interview_json_from_text(text: str) -> dict:
     """
     Extrai JSON de texto que pode conter markdown ou outros elementos
     """
