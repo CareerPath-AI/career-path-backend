@@ -61,7 +61,7 @@ GEMINI_API_KEY=sua_chave_api_gemini_aqui
 
 ### 5. Execute a aplicação
 ```bash
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 6. Acesse a documentação da API
@@ -124,5 +124,5 @@ Certifique-se de que a variável `GEMINI_API_KEY` está configurada corretamente
 ### Porta em uso
 Se a porta 8000 estiver em uso, altere a porta no comando de execução:
 ```bash
-uvicorn app:app --reload --host 0.0.0.0 --port 8001
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
