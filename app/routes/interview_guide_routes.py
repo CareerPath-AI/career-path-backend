@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import JSONResponse
-from app.services.interview_guide_services import generate_interview_guide_service  # CORREÇÃO AQUI
+from app.services.interview_guide_services import generate_interview_guide_service
 
 interview_guide_router = APIRouter(prefix="/interview-guide", tags=["interview-guide"])
 
@@ -19,7 +19,7 @@ async def generate_interview_guide(
         # Lê o conteúdo do arquivo
         contents = await file.read()
         
-        # Chama o service para processar o guia de entrevista - CORREÇÃO AQUI
+        # Chama o service para processar o guia de entrevista
         result = await generate_interview_guide_service(contents, file.filename, job_description)
         
         return JSONResponse(result)
