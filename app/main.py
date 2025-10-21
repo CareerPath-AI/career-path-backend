@@ -1,9 +1,9 @@
-# app.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.routes.analyze_resume_routes import analyze_resume_router
 from app.routes.check_routes import check_router
+from app.routes.interview_guide_routes import interview_guide_router 
 import os
 
 os.environ["GRPC_VERBOSITY"] = "ERROR"
@@ -27,3 +27,4 @@ app.add_middleware(
 
 app.include_router(analyze_resume_router)
 app.include_router(check_router)
+app.include_router(interview_guide_router)  

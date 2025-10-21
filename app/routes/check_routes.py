@@ -1,3 +1,4 @@
+# app/routes/check_routes.py
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 import google.generativeai as genai
@@ -22,7 +23,7 @@ async def list_models():
     
 
 @check_router.get("/")
-async def root():
+async def healthcheck():
     """
     Rota para fazer o healthcheck e obter informações gerais da API.
     """
