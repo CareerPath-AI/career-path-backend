@@ -1,3 +1,4 @@
+# app/utils/utils.py
 import json
 import re
 
@@ -285,3 +286,168 @@ def suggest_roles(languages, frameworks, level):
         level_roles = [f"Desenvolvedor de Software {level}"]
 
     return level_roles
+
+def generate_fallback_interview_guide(resume_text: str, job_description: str) -> dict:
+    """Guia de entrevista de fallback caso o Gemini falhe"""
+    
+    text_lower = resume_text.lower()
+    job_desc_lower = job_description.lower()
+    
+    # Detecta habilidades relevantes
+    programming_languages = detect_skills(text_lower, [
+        "python", "java", "javascript", "typescript", "c#", "c++", "php", "ruby", 
+        "go", "rust", "swift", "kotlin", "dart", "r", "matlab"
+    ])
+    
+    frameworks = detect_skills(text_lower, [
+        "django", "flask", "fastapi", "spring", "react", "angular", "vue", "node.js",
+        "express", "laravel", "ruby on rails", "asp.net", "next.js", "nuxt.js"
+    ])
+    
+    # Análise básica de alinhamento
+    matching_skills = []
+    for skill in programming_languages + frameworks:
+        if skill in job_desc_lower:
+            matching_skills.append(skill)
+    
+    return {
+        "preparation_overview": f"Perfil com {len(matching_skills)} habilidades alinhadas com a vaga. Foque em destacar experiências específicas.",
+        "strength_analysis": {
+            "key_strengths": matching_skills[:3],
+            "alignment_points": ["Experiência técnica compatível", "Habilidades transferíveis relevantes"]
+        },
+        "technical_preparation": {
+            "programming_languages": [
+                {
+                    "topic": lang,
+                    "focus_points": ["Conceitos fundamentais", "Melhores práticas", "Projetos relevantes"],
+                    "expected_level": "Revisar conceitos avançados" if len(matching_skills) > 3 else "Fortalecer fundamentos"
+                } for lang in programming_languages[:2]
+            ],
+            "frameworks_tools": [
+                {
+                    "topic": framework,
+                    "key_concepts": ["Arquitetura", "Padrões de projeto", "Casos de uso comuns"],
+                    "practical_examples": ["Descrever projeto usando esta tecnologia"]
+                } for framework in frameworks[:2]
+            ],
+            "system_design": [
+                {
+                    "topic": "Design de sistemas escaláveis",
+                    "preparation_guide": "Revisar conceitos de escalabilidade e resiliência"
+                }
+            ]
+        },
+        "behavioral_preparation": {
+            "storytelling_points": [
+                {
+                    "situation": "Projeto técnico desafiador",
+                    "key_achievements": ["Entregas realizadas", "Problemas resolvidos"],
+                    "metrics": "Resultados alcançados"
+                }
+            ],
+            "common_questions": [
+                {
+                    "question": "Conte sobre um projeto complexo que você liderou",
+                    "preparation_tips": "Use a metodologia STAR (Situação, Tarefa, Ação, Resultado)",
+                    "resume_connection": "Relacione com projetos mencionados no currículo"
+                }
+            ]
+        },
+        "company_specific_preparation": {
+            "research_topics": ["Produtos/serviços da empresa", "Cultura organizacional"],
+            "questions_to_ask": [
+                "Quais são os maiores desafios técnicos atuais?",
+                "Como é o ciclo de desenvolvimento na equipe?",
+                "Quais as oportunidades de aprendizado e crescimento?"
+            ]
+        },
+        "study_plan_timeline": {
+            "immediate_24h": ["Revisar projetos do currículo", "Praticar conceitos técnicos básicos"],
+            "next_3_days": ["Estudar tópicos específicos da vaga", "Preparar exemplos comportamentais"],
+            "week_before": ["Revisão geral", "Simular entrevista com colega"]
+        }
+    }
+
+
+def build_fallback_response(text: str) -> dict:
+    """Constrói uma resposta de fallback quando o JSON não pode ser parseado"""
+    # Análise básica do texto para extrair informações
+    lines = text.split('\n')
+    key_strengths = []
+    alignment_points = []
+    
+    # Procura por padrões comuns na resposta
+    for line in lines:
+        line_lower = line.lower()
+        if any(word in line_lower for word in ['força', 'strength', 'ponto forte', 'habilidade']):
+            if len(line) > 10:  # Evita linhas muito curtas
+                key_strengths.append(line.strip())
+        elif any(word in line_lower for word in ['alinhamento', 'alignment', 'compatível', 'match']):
+            if len(line) > 10:
+                alignment_points.append(line.strip())
+    
+    # Se não encontrou nada, usa valores padrão
+    if not key_strengths:
+        key_strengths = ["Habilidades técnicas relevantes", "Experiência em projetos de dados"]
+    if not alignment_points:
+        alignment_points = ["Perfil compatível com a vaga", "Experiência alinhada com os requisitos"]
+    
+    return {
+        "preparation_overview": "Análise realizada com sucesso. Foque em destacar suas experiências técnicas durante a entrevista.",
+        "strength_analysis": {
+            "key_strengths": key_strengths[:3],
+            "alignment_points": alignment_points[:2]
+        },
+        "technical_preparation": {
+            "programming_languages": [
+                {
+                    "topic": "Python",
+                    "focus_points": ["Estruturas de dados", "Bibliotecas de análise (Pandas, NumPy)", "Automação de scripts"],
+                    "expected_level": "Intermediário"
+                }
+            ],
+            "frameworks_tools": [
+                {
+                    "topic": "Power BI",
+                    "key_concepts": ["Criação de dashboards", "DAX para cálculos", "Modelagem de dados"],
+                    "practical_examples": ["Prepare exemplos de relatórios que criou"]
+                }
+            ],
+            "system_design": [
+                {
+                    "topic": "Arquitetura de BI",
+                    "preparation_guide": "Estude conceitos de ETL e modelagem dimensional"
+                }
+            ]
+        },
+        "behavioral_preparation": {
+            "storytelling_points": [
+                {
+                    "situation": "Projeto de análise de dados",
+                    "key_achievements": ["Automação de processos", "Geração de insights", "Otimização de relatórios"],
+                    "metrics": "Redução de tempo de análise em X%"
+                }
+            ],
+            "common_questions": [
+                {
+                    "question": "Como você lida com prazos apertados?",
+                    "preparation_tips": "Destaque sua organização e priorização",
+                    "resume_connection": "Mencione projetos com entregas rápidas do currículo"
+                }
+            ]
+        },
+        "company_specific_preparation": {
+            "research_topics": ["Setor de atuação da empresa", "Cultura de dados da organização"],
+            "questions_to_ask": [
+                "Quais são os principais desafios de dados atuais?",
+                "Como é o fluxo de trabalho da equipe de BI?",
+                "Quais ferramentas complementares são utilizadas?"
+            ]
+        },
+        "study_plan_timeline": {
+            "immediate_24h": ["Revisar projetos de Power BI", "Praticar consultas SQL"],
+            "next_3_days": ["Estudar conceitos de storytelling com dados", "Preparar casos de uso"],
+            "week_before": ["Revisar portfólio", "Simular entrevista técnica"]
+        }
+    }
