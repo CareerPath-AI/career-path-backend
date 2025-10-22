@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.user_schema import UserRegisterSchema
 from sqlalchemy.orm import Session
-from app.core.database import get_db
-from app.core.security import verify_token
+from app.dependencies.database import get_db
+from app.dependencies.security import verify_token
+from app.core.security import bcrypt_context
 from app.models.user import User
-from app.utils.password_utils import bcrypt_context
 from app.schemas.user_schema import UserLoginSchema
-from app.utils.token_utils import authenticate_user, create_token
+from app.core.security import authenticate_user, create_token
 from datetime import timedelta
 
 

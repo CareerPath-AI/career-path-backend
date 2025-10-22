@@ -1,9 +1,9 @@
 # app\routes\analyze_resume_routes.py
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
-from app.services.analyze_services import analyze_resume_service
+from app.services.resume_analysis_services import analyze_resume_service
 
-analyze_resume_router = APIRouter(prefix="/analyze-resume", tags=["analyze-resume"])
+analyze_resume_router = APIRouter(prefix="/analyze-resume", tags=["resume-analysis"])
 
 
 @analyze_resume_router.post("/")
