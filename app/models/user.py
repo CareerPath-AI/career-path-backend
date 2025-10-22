@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.core.database import Base
 
@@ -18,6 +19,9 @@ class User(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+    resumes = relationship("Resume", back_populates="user", cascade="all, delete")
+    analyses = relationship("ResumeAnalysis", back_populates="user", cascade="all, delete")
 
     def __init__(self, name: str, email: str, password_hash: str):
         self.name = name
