@@ -1,30 +1,31 @@
-from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from app.models.user import User
-from app.core.database import get_db
-from jose import jwt, JWTError
+from fastapi import Depends
 from app.core.config import settings
+from app.dependencies.database import get_db
+from app.models.user import User
+from passlib.context import CryptContext
+from sqlalchemy.orm import Session
+from datetime import datetime, timedelta, timezone
+from jose import jwt
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login-form")
+bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
-def verify_token(
-    token: str = Depends(oauth2_scheme), session: Session = Depends(get_db)
+def create_token(
+    user_id, token_duration=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 ):
-    try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
-        user_id = int(payload.get("sub"))
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
+    expire_date = datetime.now(timezone.utc) + token_duration
+    dict_info = {
+        "sub": str(user_id), 
+        "exp": expire_date
+    }
+    encoded_jwt = jwt.encode(dict_info, settings.SECRET_KEY, settings.ALGORITHM)
+    return encoded_jwt
 
-        user = session.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
 
-        return user
-
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Token is invalid or expired")
+def authenticate_user(email: str, password: str, session: Session = Depends(get_db)):
+    user = session.query(User).filter(User.email == email).first()
+    if not user:
+        return False
+    elif not bcrypt_context.verify(password, user.password_hash):
+        return False
+    
+    return user

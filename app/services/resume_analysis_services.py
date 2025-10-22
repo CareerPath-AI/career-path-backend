@@ -1,5 +1,5 @@
 from PyPDF2 import PdfReader
-from app.utils.analyze_resume_utils import analyze_with_gemini
+from app.utils.resume_analysis_utils import analyze_with_gemini
 import io
 
 
