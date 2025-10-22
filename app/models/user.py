@@ -7,8 +7,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column("id", Integer, primary_key=True, autoincrement=True)
-    email = Column("email", String(255), unique=True, nullable=False, index=True)
     name = Column("name", String(255), nullable=False)
+    email = Column("email", String(255), unique=True, nullable=False, index=True)
     password_hash = Column("password_hash", String(255), nullable=False)
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
