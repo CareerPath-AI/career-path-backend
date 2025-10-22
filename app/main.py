@@ -5,6 +5,7 @@ from app.routes.analyze_resume_routes import analyze_resume_router
 from app.routes.check_routes import check_router
 from app.routes.interview_guide_routes import interview_guide_router
 from app.routes.development_trail_routes import development_trail_router
+from app.routes.auth_routes import auth_router
 import os
 
 os.environ["GRPC_VERBOSITY"] = "ERROR"
@@ -30,3 +31,4 @@ app.include_router(check_router)
 app.include_router(analyze_resume_router)
 app.include_router(interview_guide_router)  
 app.include_router(development_trail_router)
+app.include_router(auth_router)

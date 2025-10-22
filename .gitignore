@@ -2,5 +2,6 @@
 # --- IGNORE ---
 .venv
 .env
+.env.docker
 *__pycache__/
 *.pyc
