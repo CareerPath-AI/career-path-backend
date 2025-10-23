@@ -4,7 +4,7 @@ from app.models.user import User
 from app.services.resume_analysis_services import analyze_resume_service
 from app.dependencies.security import verify_token
 from app.dependencies.database import get_db
-from app.schemas.resume_analysis import ResumeAnalysisResponse
+from app.schemas.resume_analysis_schema import ResumeAnalysisResponse
 
 analyze_resume_router = APIRouter(prefix="/analyze-resume", tags=["resume-analysis"])
 

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.utils.resume_analysis_utils import analyze_with_gemini
 from app.models.user import User
 from app.models.resume_analysis import ResumeAnalysis
-from app.schemas.resume_analysis import ResumeAnalysisResponse
+from app.schemas.resume_analysis_schema import ResumeAnalysisResponse
 import io
 
 
