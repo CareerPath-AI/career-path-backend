@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import JSONResponse
 from app.schemas.development_trail_schema import UserData, DevelopmentTrailResponse
-from app.services.development_trail_service import (
+from app.services.development_trail_services import (
     generate_development_trail_with_gemini_service,
 )
 from app.utils.development_trail_utils import create_development_trail_prompt
@@ -28,19 +27,7 @@ async def generate_development_trail(
             user_data
         )
 
-        return JSONResponse(
-            content={
-                "status": "success",
-                "user_data_received": {
-                    "name": user_data.name,
-                    "professional_goal": user_data.professional_goal,
-                    "skills_count": len(user_data.skills),
-                    "has_additional_info": bool(user_data.additional_information),
-                },
-                "development_trail": development_trail,
-            },
-            status_code=200,
-        )
+        return development_trail
 
     except HTTPException:
         raise
