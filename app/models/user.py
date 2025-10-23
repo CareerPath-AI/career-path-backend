@@ -20,8 +20,7 @@ class User(Base):
         nullable=False,
     )
 
-    resumes = relationship("Resume", back_populates="user", cascade="all, delete")
-    analyses = relationship("ResumeAnalysis", back_populates="user", cascade="all, delete")
+    resume_analyses = relationship("ResumeAnalysis", back_populates="user", cascade="all, delete")
 
     def __init__(self, name: str, email: str, password_hash: str):
         self.name = name
