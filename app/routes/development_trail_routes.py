@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 from app.schemas.development_trail_schema import UserData, DevelopmentTrailResponse
 from app.services.development_trail_services import (
     generate_development_trail_with_gemini_service,
@@ -6,6 +7,7 @@ from app.services.development_trail_services import (
 from app.utils.development_trail_utils import create_development_trail_prompt
 from app.models.user import User
 from app.dependencies.security import verify_token
+from app.dependencies.database import get_db
 
 
 development_trail_router = APIRouter(
@@ -15,7 +17,7 @@ development_trail_router = APIRouter(
 
 @development_trail_router.post("/", response_model=DevelopmentTrailResponse)
 async def generate_development_trail(
-    user_data: UserData, current_user: User = Depends(verify_token)
+    user_data: UserData, current_user: User = Depends(verify_token), db: Session = Depends(get_db)
 ):
     """
     Recebe dados do usuário e retorna trilha de desenvolvimento personalizada.
@@ -24,7 +26,7 @@ async def generate_development_trail(
     try:
         # Gera trilha com Gemini
         development_trail = await generate_development_trail_with_gemini_service(
-            user_data
+            user_data, current_user, db
         )
 
         return development_trail
@@ -32,6 +34,7 @@ async def generate_development_trail(
     except HTTPException:
         raise
     except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail=f"Erro interno ao gerar trilha de desenvolvimento: {str(e)}",
