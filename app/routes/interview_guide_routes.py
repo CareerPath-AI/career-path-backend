@@ -1,13 +1,17 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import JSONResponse
+from app.models.user import User
+from app.dependencies.security import verify_token
 from app.services.interview_guide_services import generate_interview_guide_service
 
 interview_guide_router = APIRouter(prefix="/interview-guide", tags=["interview-guide"])
 
+
 @interview_guide_router.post("/")
 async def generate_interview_guide(
     file: UploadFile = File(...),
-    job_description: str = Form(...)
+    job_description: str = Form(...),
+    current_user: User = Depends(verify_token),
 ):
     """
     Gera um roteiro detalhado para entrevista baseado no currículo e descrição da vaga
@@ -18,10 +22,12 @@ async def generate_interview_guide(
     try:
         # Lê o conteúdo do arquivo
         contents = await file.read()
-        
+
         # Chama o service para processar o guia de entrevista
-        result = await generate_interview_guide_service(contents, file.filename, job_description)
-        
+        result = await generate_interview_guide_service(
+            contents, file.filename, job_description
+        )
+
         return JSONResponse(result)
 
     except ValueError as e:
