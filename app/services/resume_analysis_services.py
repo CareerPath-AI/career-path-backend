@@ -1,9 +1,14 @@
 from PyPDF2 import PdfReader
+from sqlalchemy.orm import Session
 from app.utils.resume_analysis_utils import analyze_with_gemini
+from app.models.user import User
+from app.models.resume_analysis import ResumeAnalysis
 import io
 
 
-async def analyze_resume_service(file_contents: bytes, filename: str) -> dict:
+async def analyze_resume_service(
+    file_contents: bytes, filename: str, user: User, db: Session
+) -> dict:
     """
     Service para análise de currículo
     """
@@ -28,6 +33,17 @@ async def analyze_resume_service(file_contents: bytes, filename: str) -> dict:
 
     # Analisa o currículo com Gemini
     analysis_result = await analyze_with_gemini(text)
+
+    # Salva no banco
+    resume_analysis = ResumeAnalysis(
+        user_id=user.id,
+        original_filename=filename,
+        analysis_result=analysis_result,
+    )
+
+    db.add(resume_analysis)
+    db.commit()
+    db.refresh(resume_analysis)
 
     return {
         "filename": filename,
