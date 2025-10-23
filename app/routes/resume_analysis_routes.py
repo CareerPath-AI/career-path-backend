@@ -1,15 +1,15 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.services.resume_analysis_services import analyze_resume_service
 from app.dependencies.security import verify_token
 from app.dependencies.database import get_db
+from app.schemas.resume_analysis import ResumeAnalysisResponse
 
 analyze_resume_router = APIRouter(prefix="/analyze-resume", tags=["resume-analysis"])
 
 
-@analyze_resume_router.post("/")
+@analyze_resume_router.post("/", response_model=ResumeAnalysisResponse)
 async def analyze_resume(
     file: UploadFile = File(...),
     current_user: User = Depends(verify_token),
@@ -28,7 +28,7 @@ async def analyze_resume(
         # Chama o service para processar a análise
         result = await analyze_resume_service(contents, file.filename, current_user, db)
 
-        return JSONResponse(result)
+        return result
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
