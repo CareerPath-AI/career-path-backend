@@ -3,13 +3,12 @@ from sqlalchemy.orm import Session
 from app.utils.resume_analysis_utils import analyze_with_gemini
 from app.models.user import User
 from app.models.resume_analysis import ResumeAnalysis
-from app.schemas.resume_analysis_schema import ResumeAnalysisResponse
 import io
 
 
 async def analyze_resume_service(
     file_contents: bytes, filename: str, user: User, db: Session
-) -> ResumeAnalysisResponse:
+) -> dict:
     """
     Service para análise de currículo
     """
@@ -46,9 +45,8 @@ async def analyze_resume_service(
     db.commit()
     db.refresh(resume_analysis)
 
-    return ResumeAnalysisResponse(
-        filename=filename,
-        total_pages=len(reader.pages),
-        analysis=analysis_result,
-        analysis_id=resume_analysis.id
-    )
+    return {
+        "id": resume_analysis.id,
+        "original_filename": filename,
+        "analysis_result": analysis_result
+    }
