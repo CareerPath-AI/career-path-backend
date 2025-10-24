@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 class UserData(BaseModel):
@@ -18,6 +18,4 @@ class UserData(BaseModel):
 
 
 class DevelopmentTrailResponse(BaseModel):
-    status: str
-    user_data_received: dict
-    development_trail: dict
+    development_trail: Dict[str, Any]

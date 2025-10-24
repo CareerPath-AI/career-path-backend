@@ -47,24 +47,46 @@ uv sync
 source .venv/bin/activate
 ```
 
-### 4. Configure as variáveis de ambiente
+### 4. Rode o comando docker para o PostgreSQL:
+Nota: Você pode customizar o usuário, senha, DB e porta de acordo com seu desejo.
+```bash
+docker run --name career-path-ai-postgres -e POSTGRES_USER=seu_user -e POSTGRES_PASSWORD=sua_senha -e POSTGRES_DB=seu_db -p 5432:5432 -d postgres
+```
+
+### 5. Configure as variáveis de ambiente
 Crie um arquivo `.env` na raiz do projeto:
 ```bash
 # Copie o arquivo de exemplo
 cp .env.example .env
 ```
 
-Edite o arquivo `.env` e adicione sua chave da API Gemini:
+Edite o arquivo `.env` e adicione:
+Nota: Peça o ALGORITHM e ACCESS_TOKEN_EXPIRE_MINUTES para algum dev.
 ```env
+POSTGRES_DB=seu_db
+POSTGRES_HOST=seu_host
+POSTGRES_PORT=sua_porta
+POSTGRES_USER=seu_user
+POSTGRES_PASSWORD=sua_senha
+
+SECRET_KEY=sua_secret_key
+ALGORITHM=seu_algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES=seu_tempo_de_expiracao
+
 GEMINI_API_KEY=sua_chave_api_gemini_aqui
 ```
 
-### 5. Execute a aplicação
+### 6. Aplique as migrations do banco
+```bash
+alembic upgrade head
+```
+
+### 7. Execute a aplicação
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 6. Acesse a documentação da API
+### 8. Acesse a documentação da API
 Após executar a aplicação, acesse:
 - **Swagger UI**: http://localhost:8000/docs
 - **Redoc**: http://localhost:8000/redoc
