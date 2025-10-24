@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.utils.development_trail_utils import (
-    create_development_trail_prompt,
+    create_adaptive_development_trail_prompt,
     extract_json_from_response,
 )
 from app.schemas.development_trail_schema import UserData
@@ -15,7 +15,7 @@ async def generate_development_trail_with_gemini_service(
 ) -> dict:
     """Gera trilha de desenvolvimento usando Google Gemini"""
     # Cria prompt
-    prompt = create_development_trail_prompt(user_data)
+    prompt = create_adaptive_development_trail_prompt(user_data)
 
     try:
         model = genai.GenerativeModel("gemini-2.0-flash-001")

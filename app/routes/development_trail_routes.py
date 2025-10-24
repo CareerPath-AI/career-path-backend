@@ -4,7 +4,7 @@ from app.schemas.development_trail_schema import UserData, DevelopmentTrailRespo
 from app.services.development_trail_services import (
     generate_development_trail_with_gemini_service,
 )
-from app.utils.development_trail_utils import create_development_trail_prompt
+from app.utils.development_trail_utils import create_adaptive_development_trail_prompt
 from app.models.user import User
 from app.dependencies.security import verify_token
 from app.dependencies.database import get_db
@@ -59,7 +59,7 @@ async def test_prompt_structure(current_user: User = Depends(verify_token)):
         additional_information="Tenho interesse em aprender Docker e AWS",
     )
 
-    prompt = create_development_trail_prompt(test_data)
+    prompt = create_adaptive_development_trail_prompt(test_data)
 
     return {
         "prompt_structure": "valid",
