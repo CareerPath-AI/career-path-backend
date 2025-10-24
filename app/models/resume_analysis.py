@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+from sqlalchemy.sql import func
 from app.core.database import Base
 
 
@@ -12,6 +12,6 @@ class ResumeAnalysis(Base):
 
     original_filename = Column(String(255), nullable=False)
     analysis_result = Column(JSON, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
 
     user = relationship("User", back_populates="resume_analyses")
