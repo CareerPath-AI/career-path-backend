@@ -5,7 +5,7 @@ from app.models.user import User
 from app.models.interview_guide import InterviewGuide
 from app.dependencies.security import verify_token
 from app.services.interview_guide_services import generate_interview_guide_service
-from app.schemas.interview_guide_schema import InterviewGuideResponse, InterviewGuideListResponse
+from app.schemas.interview_guide_schema import InterviewGuideResponse, InterviewGuideListResponse, InterviewGuideDeleteResponse
 
 interview_guide_router = APIRouter(prefix="/interview-guide", tags=["interview-guide"])
 
@@ -96,3 +96,42 @@ async def get_interview_guide(
         )
     
     return interview_guide
+
+
+@interview_guide_router.delete("/{interview_guide_id}", response_model=InterviewGuideDeleteResponse)
+async def delete_interview_guide(
+    interview_guide_id: int,
+    current_user: User = Depends(verify_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Deleta um guia de entrevista do usuário.
+    """
+    try:
+        interview_guide = db.query(InterviewGuide).filter(
+            InterviewGuide.id == interview_guide_id,
+            InterviewGuide.user_id == current_user.id
+        ).first()
+
+        if not interview_guide:
+            raise HTTPException(
+                status_code=404,
+                detail="Guia de entrevista não encontrado"
+            )
+        
+        db.delete(interview_guide)
+        db.commit()
+
+        return InterviewGuideDeleteResponse(
+            message="Guia de entrevista deletado com sucesso",
+            deleted_id=interview_guide_id
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao deletar guia de entrevista: {str(e)}"
+        )

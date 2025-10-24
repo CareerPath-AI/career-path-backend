@@ -12,3 +12,8 @@ class InterviewGuideResponse(BaseModel):
 class InterviewGuideListResponse(BaseModel):
     interview_guides: List[InterviewGuideResponse]
     total_count: int
+
+
+class InterviewGuideDeleteResponse(BaseModel):
+    message: str
+    deleted_id: int
