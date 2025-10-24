@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.utils.resume_analysis_utils import analyze_with_gemini
 from app.models.user import User
 from app.models.resume_analysis import ResumeAnalysis
+from datetime import datetime, timezone
 import io
 
 
@@ -39,6 +40,7 @@ async def analyze_resume_service(
         user_id=user.id,
         original_filename=filename,
         analysis_result=analysis_result,
+        created_at=datetime.now(timezone.utc)
     )
 
     db.add(resume_analysis)
@@ -48,5 +50,6 @@ async def analyze_resume_service(
     return {
         "id": resume_analysis.id,
         "original_filename": filename,
-        "analysis_result": analysis_result
+        "analysis_result": analysis_result,
+        "created_at": resume_analysis.created_at
     }
