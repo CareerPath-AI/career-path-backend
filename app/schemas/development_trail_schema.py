@@ -19,3 +19,11 @@ class UserData(BaseModel):
 
 class DevelopmentTrailResponse(BaseModel):
     development_trail: Dict[str, Any]
+
+    class Config:
+        from_attributes = True
+
+
+class DevelopmentTrailListResponse(BaseModel):
+    development_trails: List[DevelopmentTrailResponse]
+    total_count: int
