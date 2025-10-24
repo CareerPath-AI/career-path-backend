@@ -27,3 +27,8 @@ class DevelopmentTrailResponse(BaseModel):
 class DevelopmentTrailListResponse(BaseModel):
     development_trails: List[DevelopmentTrailResponse]
     total_count: int
+
+
+class DevelopmentTrailDeleteResponse(BaseModel):
+    message: str
+    deleted_id: int
