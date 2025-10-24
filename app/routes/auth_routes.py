@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.user_schema import UserRegisterSchema
 from sqlalchemy.orm import Session
@@ -7,7 +7,7 @@ from app.dependencies.security import verify_token
 from app.core.security import bcrypt_context
 from app.models.user import User
 from app.schemas.user_schema import UserLoginSchema
-from app.core.security import authenticate_user, create_token
+from app.core.security import authenticate_user, create_token, add_token_to_blacklist
 from datetime import timedelta
 
 
@@ -83,3 +83,21 @@ async def use_refresh_token(user: User = Depends(verify_token)):
         "access_token": access_token,
         "token_type": "Bearer"
     }
+
+
+@auth_router.post("/logout")
+async def logout(
+    authorization: str = Header(...),
+    current_user: User = Depends(verify_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Faz logout do usuário adicionando o token à blacklist
+    """
+    # Extrai o token do header
+    token = authorization.replace("Bearer ", "")
+
+    # Adiciona a blacklist
+    add_token_to_blacklist(token, db)
+
+    return {"message": "Logout realizado com sucesso"}
