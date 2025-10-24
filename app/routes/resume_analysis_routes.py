@@ -5,7 +5,7 @@ from app.models.resume_analysis import ResumeAnalysis
 from app.services.resume_analysis_services import analyze_resume_service
 from app.dependencies.security import verify_token
 from app.dependencies.database import get_db
-from app.schemas.resume_analysis_schema import ResumeAnalysisResponse, ResumeAnalysisListResponse
+from app.schemas.resume_analysis_schema import ResumeAnalysisResponse, ResumeAnalysisListResponse, ResumeAnalysisDeleteResponse
 
 analyze_resume_router = APIRouter(prefix="/analyze-resume", tags=["resume-analysis"])
 
@@ -94,3 +94,42 @@ async def get_resume_analysis(
         )
     
     return analysis
+
+
+@analyze_resume_router.delete("/{analysis_id}", response_model=ResumeAnalysisDeleteResponse)
+async def delete_resume_analysis(
+    analysis_id: int,
+    current_user: User = Depends(verify_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete uma análise de currículo do usuário.
+    """
+    try:
+        analysis = db.query(ResumeAnalysis).filter(
+            ResumeAnalysis.id == analysis_id,
+            ResumeAnalysis.user_id == current_user.id
+        ).first()
+
+        if not analysis:
+            raise HTTPException(
+                status_code=404,
+                detail="Análise não encontrada"
+            )
+        
+        db.delete(analysis)
+        db.commit()
+
+        return ResumeAnalysisDeleteResponse(
+            message="Análise deletada com sucesso",
+            deleted_id=analysis_id
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao deletar análise: {str(e)}"
+        )

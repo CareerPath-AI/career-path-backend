@@ -16,3 +16,8 @@ class ResumeAnalysisResponse(BaseModel):
 class ResumeAnalysisListResponse(BaseModel):
     analyses: List[ResumeAnalysisResponse]
     total_count: int
+
+
+class ResumeAnalysisDeleteResponse(BaseModel):
+    message: str
+    deleted_id: int
