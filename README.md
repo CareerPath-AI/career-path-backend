@@ -2,119 +2,200 @@
 Repositório do BackEnd do CareerPath-AI.
 
 ## Descrição
-API para análise de currículos utilizando Google Gemini AI. A aplicação extrai informações de PDFs e fornece análise detalhada de habilidades, nível de experiência, recomendações de carreira e insights de mercado.
+API para análise de currículos, geração de trilhas de desenvolvimento em áreas da tecnologia e de guias de entrevista utilizando Google Gemini AI. A aplicação extrai informações de PDFs e fornece análise detalhada de habilidades, nível de experiência, recomendações de carreira e insights de mercado.
 
-## Pré-requisitos
-- Python 3.13
+## Opção 1: Execução com Docker
+
+### Pré-requisitos
+- Docker
+- Docker Compose
 - Chave de API do Google Gemini
 
-## Configuração e Execução
+### Passos para execução:
 
-### 1. Clone o repositório
+#### 1. Clone o repositório
 ```bash
 git clone <url-do-repositorio>
 cd career-path-backend
 ```
 
-### 2. Instalar o gerenciador de pacotes uv
-#### No Linux/Mac
+#### 2. Configure as variáveis de ambiente
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+cp .env.example .env.docker
 ```
 
-#### No Windows 
-```bash
-irm https://astral.sh/uv/install.ps1 | iex
-```
-
-#### Em seguida, verifique se o uv foi instalado corretamente:
-```bash
-uv --version
-```
-
-### 3. Instalar as dependências e ativar ambiente virtual
-```bash
-uv sync
-```
-
-#### No Windows:
-```bash
-.venv\Scripts\activate
-```
-
-#### No Linux/Mac:
-```bash
-source .venv/bin/activate
-```
-
-### 4. Rode o comando docker para o PostgreSQL:
-Nota: Você pode customizar o usuário, senha, DB e porta de acordo com seu desejo.
-```bash
-docker run --name career-path-ai-postgres -e POSTGRES_USER=seu_user -e POSTGRES_PASSWORD=sua_senha -e POSTGRES_DB=seu_db -p 5432:5432 -d postgres
-```
-
-### 5. Configure as variáveis de ambiente
-Crie um arquivo `.env` na raiz do projeto:
-```bash
-# Copie o arquivo de exemplo
-cp .env.example .env
-```
-
-Edite o arquivo `.env` e adicione:
-Nota: Peça o ALGORITHM e ACCESS_TOKEN_EXPIRE_MINUTES para algum dev.
+#### 3. Edite o arquivo .env.docker
 ```env
-POSTGRES_DB=seu_db
-POSTGRES_HOST=seu_host
-POSTGRES_PORT=sua_porta
+POSTGRES_DB=seu_banco
+POSTGRES_HOST=career-path-postgres
+POSTGRES_PORT=5433
 POSTGRES_USER=seu_user
 POSTGRES_PASSWORD=sua_senha
 
-SECRET_KEY=sua_secret_key
-ALGORITHM=seu_algorithm
-ACCESS_TOKEN_EXPIRE_MINUTES=seu_tempo_de_expiracao
+SECRET_KEY=sua_secret_key_super_segura_aqui
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 GEMINI_API_KEY=sua_chave_api_gemini_aqui
 ```
 
-### 6. Aplique as migrations do banco
+#### 4. Execute a aplicação
+```bash
+docker compose up --build
+```
+
+#### 5. Acesse a aplicação
+- **API: http://localhost:8000
+- **Swagger UI: http://localhost:8000/docs
+- **Redoc: http://localhost:8000/redoc
+
+## Opção 2: Execução local
+
+### Pré requisitos
+- Python 3.13
+- PostgreSQL
+- Chave da API do Google Gemini
+
+### Passos para execução:
+
+#### 1. Clone o repositório
+```bash
+git clone <url-do-repositorio>
+cd career-path-backend
+```
+
+#### 2. Instalar o gerenciador de pacotes uv
+
+##### No Linux/Mac
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+##### No Windows
+```bash
+irm https://astral.sh/uv/install.ps1 | iex
+```
+
+##### Verifique a instalação
+```bash
+uv --version
+```
+
+#### 3. Instalar as dependências e ativar ambiente virtual
+```bash
+uv sync
+```
+
+##### No Windows:
+```bash
+.venv\Scripts\activate
+```
+
+##### No Linux/Mac:
+```bash
+source .venv/bin/activate
+```
+
+#### 4. Configurar PostgreSQL
+
+##### Opção A: Usando Docker para apenas o PostgreSQL
+```bash
+docker run --name career-path-postgres \
+  -e POSTGRES_USER=seu_user \
+  -e POSTGRES_PASSWORD=sua_senha \
+  -e POSTGRES_DB=seu_db \
+  -p 5432:5432 -d postgres
+```
+
+##### Opção B: PostgreSQL local
+
+Certifique-se de ter o PostgreSQL instalado e cria o banco manualmente.
+
+#### 5. Configure as variáveis de ambiente
+```bash
+cp .env.example .env
+```
+
+Edite o arquivo .env:
+```env
+POSTGRES_DB=seu_db
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=seu_user
+POSTGRES_PASSWORD=sua_senha
+
+SECRET_KEY=sua_secret_key_super_segura_aqui
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+GEMINI_API_KEY=sua_chave_api_gemini_aqui
+```
+
+#### 6. Aplique as migrations do banco
 ```bash
 alembic upgrade head
 ```
 
-### 7. Execute a aplicação
+#### 7. Execute a aplicação
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 8. Acesse a documentação da API
-Após executar a aplicação, acesse:
-- **Swagger UI**: http://localhost:8000/docs
-- **Redoc**: http://localhost:8000/redoc
-
-## Testando a API
-
-### 1. Acesse o Swagger UI
-Navegue até http://localhost:8000/docs para ver todos os endpoints disponíveis.
-
-### 2. Teste o endpoint de análise de currículo
-1. No Swagger UI, expanda o endpoint `POST /analyze-resume/`
-2. Clique em "Try it out"
-3. Selecione um arquivo PDF de currículo
-4. Clique em "Execute"
-
-### 3. Endpoints disponíveis
-- `GET /` - Health check da API
-- `GET /models` - Lista modelos Gemini disponíveis
-- `POST /analyze-resume/` - Analisa um currículo em PDF
+#### 8. Acesse a aplicação
+- **API: http://localhost:8000
+- **Swagger UI: http://localhost:8000/docs
+- **Redoc: http://localhost:8000/redoc
 
 ## Estrutura do Projeto
 ```
 career-path-backend/
-├── app.py              # Aplicação FastAPI principal
-├── .env.example        # Exemplo de variáveis de ambiente
-├── .gitignore          # Arquivos ignorados pelo Git
-├── .python-version     # Versão do Python
-└── requirements.txt    # Dependências do projeto
+├── alembic.ini                     # Configuração do Alembic (migrations)
+├── app/                            # Código principal da aplicação
+│   ├── core/                       # Configurações centrais da aplicação
+│   │   ├── config.py              # Configurações de ambiente
+│   │   ├── database.py            # Configuração do banco de dados
+│   │   ├── security.py            # Configurações de segurança e JWT
+│   │   └── tasks.py               # Tarefas em background
+│   ├── dependencies/               # Dependências do FastAPI
+│   │   ├── database.py            # Injeção de dependência do banco
+│   │   └── security.py            # Dependências de autenticação
+│   ├── models/                     # Modelos do SQLAlchemy (banco de dados)
+│   │   ├── user.py                # Modelo de usuário
+│   │   ├── token_blacklist.py     # Modelo para blacklist de tokens
+│   │   ├── resume_analysis.py     # Modelo de análise de currículo
+│   │   ├── development_trail.py   # Modelo de trilha de desenvolvimento
+│   │   └── interview_guide.py     # Modelo de guia de entrevista
+│   ├── routes/                     # Rotas da API (endpoints)
+│   │   ├── auth_routes.py         # Autenticação (login, registro, logout)
+│   │   ├── resume_analysis_routes.py # Análise de currículos
+│   │   ├── development_trail_routes.py # Trilhas de desenvolvimento
+│   │   ├── interview_guide_routes.py  # Guias de entrevista
+│   │   └── check_routes.py        # Health checks e status
+│   ├── schemas/                   # Schemas Pydantic (validação de dados)
+│   │   ├── auth_schema.py         # Schemas de autenticação
+│   │   ├── resume_analysis_schema.py # Schemas de análise de currículo
+│   │   ├── development_trail_schema.py # Schemas de trilhas
+│   │   └── interview_guide_schema.py # Schemas de guias de entrevista
+│   ├── services/                  # Lógica de negócio
+│   │   ├── resume_analysis_services.py # Serviços de análise de currículo
+│   │   ├── development_trail_services.py # Serviços de trilhas
+│   │   └── interview_guide_services.py # Serviços de guias
+│   ├── utils/                     # Utilitários e helpers
+│   │   ├── resume_analysis_utils.py # Utilitários para análise de currículo
+│   │   ├── development_trail_utils.py # Utilitários para trilhas
+│   │   ├── interview_guide_utils.py # Utilitários para guias
+│   │   └── token_cleanup.py       # Limpeza de tokens expirados
+│   └── main.py                    # Aplicação FastAPI principal
+├── migrations/                    # Migrations do banco de dados (Alembic)
+│   └── versions/                  # Histórico de migrations
+├── docker/                        # Configurações do Docker
+│   └── Dockerfile                 # Dockerfile da aplicação
+├── docker-compose.yaml           # Orquestração de containers
+├── docs/                         # Documentação
+│   └── requisitos.pdf            # Documento de requisitos
+├── pyproject.toml               # Dependências e configuração do projeto
+├── uv.lock                      # Lock file do gerenciador uv
+└── README.md                    # Este arquivo
 ```
 
 ## Funcionalidades
