@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.user_schema import UserRegisterSchema
 from sqlalchemy.orm import Session
@@ -87,14 +87,17 @@ async def use_refresh_token(user: User = Depends(verify_token)):
 
 @auth_router.post("/logout")
 async def logout(
-    authorization: str = Header(...),
+    request: Request,
     current_user: User = Depends(verify_token),
     db: Session = Depends(get_db)
 ):
     """
     Faz logout do usuário adicionando o token à blacklist
     """
-    # Extrai o token do header
+    authorization = request.headers.get("Authorization")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token inválido")
+    
     token = authorization.replace("Bearer ", "")
 
     # Adiciona a blacklist
