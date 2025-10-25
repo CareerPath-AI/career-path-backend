@@ -15,3 +15,18 @@ class LoginRequest(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    
+
+class MessageResponse(BaseModel):
+    message: str
