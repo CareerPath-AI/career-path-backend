@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
 
-class UserData(BaseModel):
+class DevelopmentTrailRequest(BaseModel):
     name: str = Field(..., example="Joao")
     age: Optional[int] = Field(None, example=23)
     education: Optional[str] = Field(None, example="Graduação em andamento")

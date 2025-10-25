@@ -1,9 +1,9 @@
-from app.schemas.development_trail_schema import UserData
+from app.schemas.development_trail_schema import DevelopmentTrailRequest
 import json
 import re
 
 
-def create_adaptive_development_trail_prompt(user_data: UserData) -> str:
+def create_adaptive_development_trail_prompt(user_data: DevelopmentTrailRequest) -> str:
     """Cria um prompt adaptável baseado no tempo disponível do usuário"""
 
     # Calcula meses totais baseado no timeframe

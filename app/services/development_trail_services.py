@@ -4,14 +4,14 @@ from app.utils.development_trail_utils import (
     create_adaptive_development_trail_prompt,
     extract_json_from_response,
 )
-from app.schemas.development_trail_schema import UserData
+from app.schemas.development_trail_schema import DevelopmentTrailRequest
 from app.models.user import User
 from app.models.development_trail import DevelopmentTrail
 import google.generativeai as genai
 
 
 async def generate_development_trail_with_gemini_service(
-    user_data: UserData, user: User, db: Session
+    user_data: DevelopmentTrailRequest, user: User, db: Session
 ) -> dict:
     """Gera trilha de desenvolvimento usando Google Gemini"""
     # Cria prompt

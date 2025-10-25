@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from app.schemas.user_schema import UserRegisterSchema
+from app.schemas.auth_schema import RegisterRequest
 from sqlalchemy.orm import Session
 from app.dependencies.database import get_db
 from app.dependencies.security import verify_token
 from app.core.security import bcrypt_context
 from app.models.user import User
-from app.schemas.user_schema import UserLoginSchema
+from app.schemas.auth_schema import LoginRequest
 from app.core.security import authenticate_user, create_token, add_token_to_blacklist
 from datetime import timedelta
 
@@ -15,7 +15,7 @@ auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @auth_router.post("/create")
-async def create_account(user_data: UserRegisterSchema, session: Session = Depends(get_db)):
+async def create_account(user_data: RegisterRequest, session: Session = Depends(get_db)):
     """
     Cria um novo usuário no banco de dados.
     """
@@ -38,7 +38,7 @@ async def create_account(user_data: UserRegisterSchema, session: Session = Depen
     
 
 @auth_router.post("/login")
-async def login(login_schema: UserLoginSchema, session: Session = Depends(get_db)):
+async def login(login_schema: LoginRequest, session: Session = Depends(get_db)):
     """
     Autentica usuários no sistema.
     """

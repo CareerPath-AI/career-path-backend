@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from app.schemas.development_trail_schema import (
-    UserData,
+    DevelopmentTrailRequest,
     DevelopmentTrailResponse,
     DevelopmentTrailListResponse,
     DevelopmentTrailDeleteResponse,
@@ -23,7 +23,7 @@ development_trail_router = APIRouter(
 
 @development_trail_router.post("/", response_model=DevelopmentTrailResponse)
 async def generate_development_trail(
-    user_data: UserData,
+    user_data: DevelopmentTrailRequest,
     current_user: User = Depends(verify_token),
     db: Session = Depends(get_db),
 ):
@@ -52,7 +52,7 @@ async def generate_development_trail(
 @development_trail_router.get("/test-prompt")
 async def test_prompt_structure(current_user: User = Depends(verify_token)):
     """Endpoint para testar a estrutura do prompt (apenas desenvolvimento)"""
-    test_data = UserData(
+    test_data = DevelopmentTrailRequest(
         name="João Teste",
         age=25,
         education="Graduação em Sistemas de Informação",

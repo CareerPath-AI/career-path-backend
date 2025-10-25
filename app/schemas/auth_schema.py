@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-class UserRegisterSchema(BaseModel):
+class RegisterRequest(BaseModel):
     email: str
     name: str
     password: str
@@ -9,7 +9,7 @@ class UserRegisterSchema(BaseModel):
         from_attributes = True
 
 
-class UserLoginSchema(BaseModel):
+class LoginRequest(BaseModel):
     email: str
     password: str
 
