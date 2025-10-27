@@ -4,15 +4,29 @@ from app.dependencies.database import get_db
 
 scheduler = BackgroundScheduler()
 
+
+def scheduled_cleanup_job():
+    """
+    Executa a limpeza com criação e fechamento de sessão.
+    """
+    db = next(get_db())
+    try:
+        cleanup_expired_tokens(db)
+    except Exception as e:
+        print(f"Erro ao limpar tokens expirados: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
 def start_token_cleanup_scheduler():
     """
     Inicia o scheduler de limpeza de tokens
     """
     if not scheduler.running:
         scheduler.add_job(
-            cleanup_expired_tokens,
+            scheduled_cleanup_job,
             "interval",
             hours=24,
-            args=[next(get_db())]
         )
         scheduler.start()
