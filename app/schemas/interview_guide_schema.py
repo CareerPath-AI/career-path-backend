@@ -3,6 +3,7 @@ from typing import Dict, Any, List
 
 
 class InterviewGuideResponse(BaseModel):
+    id: int
     interview_guide: Dict[str, Any]
 
     class Config:

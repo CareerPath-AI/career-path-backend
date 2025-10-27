@@ -44,6 +44,7 @@ async def generate_interview_guide_service(file_contents: bytes, filename: str, 
         db.refresh(interview_guide)
 
         return {
+            "id": interview_guide.id,
             "filename": filename,
             "job_description_preview": job_description[:100] + "..." if len(job_description) > 100 else job_description,
             "interview_guide": interview_guide_result

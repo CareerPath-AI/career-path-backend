@@ -18,6 +18,7 @@ class DevelopmentTrailRequest(BaseModel):
 
 
 class DevelopmentTrailResponse(BaseModel):
+    id: int
     development_trail: Dict[str, Any]
 
     class Config:
