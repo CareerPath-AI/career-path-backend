@@ -21,7 +21,6 @@ COPY migrations ./migrations
 RUN uv sync --locked
 
 CMD ["sh", "-c", " \
-  while ! nc -z career-path-postgres 5433; do sleep 1; done; \
   /app/.venv/bin/alembic upgrade head && \
   /app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 \
 "]
