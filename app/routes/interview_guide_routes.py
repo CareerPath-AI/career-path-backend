@@ -4,7 +4,7 @@ from app.dependencies.database import get_db
 from app.models.user import User
 from app.models.interview_guide import InterviewGuide
 from app.dependencies.security import verify_token
-from app.services.interview_guide_services import generate_interview_guide_service
+from app.services.interview_guide_services import interview_guide_service
 from app.schemas.interview_guide_schema import InterviewGuideResponse, InterviewGuideListResponse, InterviewGuideDeleteResponse
 
 interview_guide_router = APIRouter(prefix="/interview-guide", tags=["interview-guide"])
@@ -20,26 +20,10 @@ async def generate_interview_guide(
     """
     Gera um roteiro detalhado para entrevista baseado no currículo e descrição da vaga
     """
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF")
-
-    try:
-        # Lê o conteúdo do arquivo
-        contents = await file.read()
-
-        # Chama o service para processar o guia de entrevista
-        interview_guide = await generate_interview_guide_service(
-            contents, file.filename, job_description, current_user, db
-        )
-
-        return interview_guide
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Erro ao gerar guia de entrevista: {str(e)}"
-        )
+    interview_guide = await interview_guide_service.generate_interview_guide_service(
+        file, job_description, current_user, db
+    )
+    return interview_guide
 
 
 @interview_guide_router.get("/", response_model=InterviewGuideListResponse)
