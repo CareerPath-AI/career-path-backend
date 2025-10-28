@@ -1,11 +1,11 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.core.security import bcrypt_context
 from app.schemas.auth_schema import RegisterRequest, LoginRequest
 from app.schemas.auth_schema import MessageResponse, TokenResponse, RefreshTokenResponse
-from app.core.security import authenticate_user, create_token
+from app.core.security import authenticate_user, create_token, add_token_to_blacklist
 from datetime import timedelta
 
 
@@ -64,6 +64,21 @@ class UserService:
         """
         access_token = create_token(user.id)
         return RefreshTokenResponse(access_token=access_token, token_type="Bearer")
+
+    def logout(self, request: Request, current_user: User, db: Session):
+        """
+        Serviço de logout do usuário adicionando o token à blacklist.
+        """
+        authorization = request.headers.get("Authorization")
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Token inválido")
+
+        token = authorization.replace("Bearer ", "")
+
+        # Adiciona a blacklist
+        add_token_to_blacklist(token, db)
+
+        return MessageResponse(message="Logout realizado com sucesso")
 
 
 user_service = UserService()

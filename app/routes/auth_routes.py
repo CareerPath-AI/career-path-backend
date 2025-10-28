@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.auth_schema import RegisterRequest, LoginRequest, TokenResponse, MessageResponse, RefreshTokenResponse
 from sqlalchemy.orm import Session
 from app.dependencies.database import get_db
 from app.dependencies.security import verify_token
 from app.models.user import User
-from app.core.security import add_token_to_blacklist
 from app.services.user_services import user_service
 
 
@@ -50,13 +49,4 @@ async def logout(
     """
     Faz logout do usuário adicionando o token à blacklist
     """
-    authorization = request.headers.get("Authorization")
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Token inválido")
-    
-    token = authorization.replace("Bearer ", "")
-
-    # Adiciona a blacklist
-    add_token_to_blacklist(token, db)
-
-    return MessageResponse(message="Logout realizado com sucesso")
+    return user_service.logout(request, current_user, db)
