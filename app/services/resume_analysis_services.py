@@ -1,6 +1,7 @@
 from fastapi import UploadFile, HTTPException
 from PyPDF2 import PdfReader
-from sqlalchemy.orm import Session
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.resume_analysis_utils import analyze_with_gemini
 from app.models.user import User
 from app.models.resume_analysis import ResumeAnalysis
@@ -15,7 +16,7 @@ import io
 
 class ResumeAnalysisService():
     async def analyze_resume_service(
-        self, file: UploadFile, current_user: User, db: Session
+        self, file: UploadFile, current_user: User, db: AsyncSession
     ) -> dict:
         """
         Service para análise de currículo
@@ -58,8 +59,8 @@ class ResumeAnalysisService():
             )
 
             db.add(resume_analysis)
-            db.commit()
-            db.refresh(resume_analysis)
+            await db.commit()
+            await db.refresh(resume_analysis)
 
             return ResumeAnalysisResponse(
                 id = resume_analysis.id,
@@ -70,27 +71,32 @@ class ResumeAnalysisService():
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"Erro ao processar o currículo: {str(e)}"
             )
     
     async def get_resume_analysis_service(
-        self, current_user: User, db: Session, skip: int, limit: int
+        self, current_user: User, db: AsyncSession, skip: int, limit: int
     ):
         """
         Serviço para obter todas as análises de currículo do usuário
         """
         try:
-            analyses = db.query(ResumeAnalysis).filter(
-                ResumeAnalysis.user_id == current_user.id
-            ).order_by(
-                ResumeAnalysis.created_at.desc()
-            ).offset(skip).limit(limit).all()
+            result = await db.execute(
+                select(ResumeAnalysis)
+                .where(ResumeAnalysis.user_id == current_user.id)
+                .order_by(ResumeAnalysis.created_at.desc())
+                .offset(skip)
+                .limit(limit)
+            )
+            analyses = result.scalars().all()
 
-            total_count = db.query(ResumeAnalysis).filter(
-                ResumeAnalysis.user_id == current_user.id
-            ).count()
+            count_result = await db.execute(
+                select(func.count(ResumeAnalysis.id))
+                .where(ResumeAnalysis.user_id == current_user.id)
+            )
+            total_count = count_result.scalar_one()
 
             return ResumeAnalysisListResponse(
                 analyses=analyses,
@@ -104,16 +110,20 @@ class ResumeAnalysisService():
             )
         
     async def get_resume_analysis_by_id_service(
-        self, analysis_id: int, current_user: User, db: Session
+        self, analysis_id: int, current_user: User, db: AsyncSession
     ):
         """
         Serviço para obter uma análise de currículo específica do usuário
         """
         try:
-            analysis = db.query(ResumeAnalysis).filter(
-                ResumeAnalysis.id == analysis_id,
-                ResumeAnalysis.user_id == current_user.id
-            ).first()
+            result = await db.execute(
+                select(ResumeAnalysis)
+                .where(
+                    ResumeAnalysis.id == analysis_id,
+                    ResumeAnalysis.user_id == current_user.id
+                )
+            )
+            analysis = result.scalar_one_or_none()
 
             if not analysis:
                 raise HTTPException(
@@ -137,16 +147,20 @@ class ResumeAnalysisService():
             )
 
     async def delete_resume_analysis_service(
-            self, analysis_id: int, current_user: User, db: Session
+            self, analysis_id: int, current_user: User, db: AsyncSession
     ):
         """
         Serviço para deletar uma análise de currículo do usuário
         """
         try:
-            analysis = db.query(ResumeAnalysis).filter(
-                ResumeAnalysis.id == analysis_id,
-                ResumeAnalysis.user_id == current_user.id
-            ).first()
+            result = await db.execute(
+                select(ResumeAnalysis)
+                .where(
+                    ResumeAnalysis.id == analysis_id,
+                    ResumeAnalysis.user_id == current_user.id
+                )
+            )
+            analysis = result.scalar_one_or_none()
 
             if not analysis:
                 raise HTTPException(
@@ -154,8 +168,8 @@ class ResumeAnalysisService():
                     detail="Análise não encontrada"
                 )
             
-            db.delete(analysis)
-            db.commit()
+            await db.delete(analysis)
+            await db.commit()
 
             return ResumeAnalysisDeleteResponse(
                 message="Análise deletada com sucesso",
@@ -165,7 +179,7 @@ class ResumeAnalysisService():
         except HTTPException:
             raise
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro ao deletar análise: {str(e)}"

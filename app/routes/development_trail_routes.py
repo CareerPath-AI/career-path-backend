@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.development_trail_schema import (
     DevelopmentTrailRequest,
     DevelopmentTrailResponse,
@@ -20,7 +20,7 @@ development_trail_router = APIRouter(prefix="/development-trail", tags=["develop
 async def generate_development_trail(
     user_data: DevelopmentTrailRequest,
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Recebe dados do usuário e retorna trilha de desenvolvimento personalizada.
@@ -62,7 +62,7 @@ async def test_prompt_structure(current_user: User = Depends(verify_token)):
 @development_trail_router.get("/", response_model=DevelopmentTrailListResponse)
 async def get_my_development_trails(
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     skip: int = Query(0, ge=0, description="Número de itens para pular"),
     limit: int = Query(
         100, ge=1, le=100, description="Número máximo de itens por página"
@@ -83,7 +83,7 @@ async def get_my_development_trails(
 async def get_development_trail(
     development_trail_id: int,
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Retorna uma trilha de desenvolvimento específica do usuário
@@ -100,7 +100,7 @@ async def get_development_trail(
 async def delete_development_trail(
     development_trail_id: int,
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Deleta uma trilha de desenvolvimento do usuário.

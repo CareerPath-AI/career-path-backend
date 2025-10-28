@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.services.resume_analysis_services import resume_analysis_service
 from app.dependencies.security import verify_token
@@ -13,7 +13,7 @@ analyze_resume_router = APIRouter(prefix="/analyze-resume", tags=["resume-analys
 async def analyze_resume(
     file: UploadFile = File(...),
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Faz análise do resumo enviado em .pdf e retorna para o usuário.
@@ -27,7 +27,7 @@ async def analyze_resume(
 @analyze_resume_router.get("/", response_model=ResumeAnalysisListResponse)
 async def get_my_resume_analyses(
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     skip: int = Query(0, ge=0, description="Número de itens para pular"),
     limit: int = Query(100, ge=1, le=100, description="Número máximo de itens por página")
 ):
@@ -44,7 +44,7 @@ async def get_my_resume_analyses(
 async def get_resume_analysis(
     analysis_id: int,
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Retorna uma análise específica do usuário.
@@ -59,10 +59,10 @@ async def get_resume_analysis(
 async def delete_resume_analysis(
     analysis_id: int,
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
-    Delete uma análise de currículo do usuário.
+    Deleta uma análise de currículo do usuário.
     """
     result = await resume_analysis_service.delete_resume_analysis_service(
         analysis_id, current_user, db

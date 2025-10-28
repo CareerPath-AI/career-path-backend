@@ -1,11 +1,33 @@
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 
 Base = declarative_base()
 
-# Cria engine
-engine = create_engine(settings.DATABASE_URL)
+# Engine assincrono (para FastAPI)
+async_engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=settings.DEBUG,
+)
+
+# Engine sincrono (para APScheduler)
+sync_engine = create_engine(
+    settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://"),
+    echo=settings.DEBUG,
+)
 
 # Cria SessionLocal
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+AsyncSessionLocal = async_sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=async_engine,
+    class_=AsyncSession
+)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=sync_engine,
+    class_=Session
+)
