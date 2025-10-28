@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.dependencies.database import get_db
 from app.dependencies.security import verify_token
 from app.models.user import User
-from app.core.security import authenticate_user, create_token, add_token_to_blacklist
+from app.core.security import add_token_to_blacklist
 from app.services.user_services import user_service
 
 
@@ -30,29 +30,15 @@ async def login(login_schema: LoginRequest, session: Session = Depends(get_db)):
 
 @auth_router.post("/login-form", response_model=TokenResponse)
 async def login_form(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_db)):
-    user = authenticate_user(form_data.username, form_data.password, session)
-    if not user:
-        raise HTTPException(
-            status_code=400, detail="Usuário não encontrado ou credenciais inválidas"
-        )
+    return user_service.login_form(form_data, session)
 
-    access_token = create_token(user.id)
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token="",
-        token_type="Bearer"
-    )
 
 @auth_router.post("/refresh", response_model=RefreshTokenResponse)
 async def use_refresh_token(user: User = Depends(verify_token)):
     """
     Rota para gerar novo access token
     """
-    access_token = create_token(user.id)
-    return RefreshTokenResponse(
-        access_token=access_token,
-        token_type="Bearer"
-    )
+    return user_service.use_refresh_token(user)
 
 
 @auth_router.post("/logout", response_model=MessageResponse)
