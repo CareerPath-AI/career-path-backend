@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.schemas.development_trail_schema import (
     DevelopmentTrailRequest,
@@ -9,7 +9,6 @@ from app.schemas.development_trail_schema import (
 from app.services.development_trail_services import development_trail_service
 from app.utils.development_trail_utils import create_adaptive_development_trail_prompt
 from app.models.user import User
-from app.models.development_trail import DevelopmentTrail
 from app.dependencies.security import verify_token
 from app.dependencies.database import get_db
 
@@ -72,30 +71,10 @@ async def get_my_development_trails(
     """
     Retorna todas as trilhas de desenvolvimento do usuário autenticado.
     """
-    try:
-        development_trails = (
-            db.query(DevelopmentTrail)
-            .filter(DevelopmentTrail.user_id == current_user.id)
-            .order_by(DevelopmentTrail.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-
-        total_count = (
-            db.query(DevelopmentTrail)
-            .filter(DevelopmentTrail.user_id == current_user.id)
-            .count()
-        )
-
-        return DevelopmentTrailListResponse(
-            development_trails=development_trails, total_count=total_count
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar análises: {str(e)}"
-        )
+    development_trails = await development_trail_service.get_development_trail_service(
+        current_user, db, skip, limit
+    )
+    return development_trails
 
 
 @development_trail_router.get(
@@ -109,21 +88,10 @@ async def get_development_trail(
     """
     Retorna uma trilha de desenvolvimento específica do usuário
     """
-    development_trails = (
-        db.query(DevelopmentTrail)
-        .filter(
-            DevelopmentTrail.id == development_trail_id,
-            DevelopmentTrail.user_id == current_user.id,
-        )
-        .first()
+    development_trail = await development_trail_service.get_development_trail_by_id_service(
+        development_trail_id, current_user, db
     )
-
-    if not development_trails:
-        raise HTTPException(
-            status_code=404, detail="Trilha de desenvolvimento não encontrada"
-        )
-
-    return development_trails
+    return development_trail
 
 
 @development_trail_router.delete(
@@ -137,34 +105,7 @@ async def delete_development_trail(
     """
     Deleta uma trilha de desenvolvimento do usuário.
     """
-    try:
-        development_trail = (
-            db.query(DevelopmentTrail)
-            .filter(
-                DevelopmentTrail.id == development_trail_id,
-                DevelopmentTrail.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not development_trail:
-            raise HTTPException(
-                status_code=404, detail="Trilha de desenvolvimento não encontrada"
-            )
-
-        db.delete(development_trail)
-        db.commit()
-
-        return DevelopmentTrailDeleteResponse(
-            message="Trilha de desenvolvimento deletada com sucesso",
-            deleted_id=development_trail_id,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao deletar trilha de desenvolvimento: {str(e)}",
-        )
+    result = await development_trail_service.delete_development_trail_service(
+        development_trail_id, current_user, db
+    )
+    return result

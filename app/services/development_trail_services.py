@@ -7,6 +7,8 @@ from app.utils.development_trail_utils import (
 from app.schemas.development_trail_schema import (
     DevelopmentTrailRequest,
     DevelopmentTrailResponse,
+    DevelopmentTrailListResponse,
+    DevelopmentTrailDeleteResponse
 )
 from app.models.user import User
 from app.models.development_trail import DevelopmentTrail
@@ -54,6 +56,114 @@ class DevelopmentTrailService:
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro interno ao gerar trilha de desenvolvimento: {str(e)}",
+            )
+        
+    async def get_development_trail_service(
+        self, current_user: User, db: Session, skip: int, limit: int
+    ):
+        """
+        Serviço que retorna todas as trilhas de desenvolvimento do usuário
+        """
+        try:
+            development_trails = (
+                db.query(DevelopmentTrail)
+                .filter(DevelopmentTrail.user_id == current_user.id)
+                .order_by(DevelopmentTrail.created_at.desc())
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
+
+            if not development_trails:
+                raise HTTPException(
+                    status_code=404, detail="Nenhuma trilha de desenvolvimento encontrada"
+                )
+
+            total_count = (
+                db.query(DevelopmentTrail)
+                .filter(DevelopmentTrail.user_id == current_user.id)
+                .count()
+            )
+
+            return DevelopmentTrailListResponse(
+                development_trails=development_trails, 
+                total_count=total_count
+            )
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao buscar trilhas de desenvolvimento: {str(e)}"
+            )
+
+    async def get_development_trail_by_id_service(
+        self, development_trail_id: int, current_user: User, db: Session
+    ):
+        """
+        Serviço que retorna uma trlha de desenvolvimento específica do usuário
+        """
+        try:
+            development_trails = (
+                db.query(DevelopmentTrail)
+                .filter(
+                    DevelopmentTrail.id == development_trail_id,
+                    DevelopmentTrail.user_id == current_user.id,
+                ).first()
+            )
+
+            if not development_trails:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Trilha de desenvolvimento não encontrada"
+                )
+            
+            return DevelopmentTrailResponse(
+                id=development_trails.id,
+                development_trail=development_trails.development_trail,
+            )
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao buscar trilha de desenvolvimento: {str(e)}"
+            )
+        
+    async def delete_development_trail_service(
+        self, development_trail_id: int, current_user: User, db: Session
+    ):
+        """
+        Serviço para deletar uma trilha de desenvolvimento do usuário
+        """
+        try:
+            development_trail = db.query(DevelopmentTrail).filter(
+                DevelopmentTrail.id == development_trail_id,
+                DevelopmentTrail.user_id == current_user.id
+            ).first()
+
+            if not development_trail:
+                raise HTTPException(
+                    status_code=404, detail="Trilha de desenvolvimento não encontrada"
+                )
+            
+            db.delete(development_trail)
+            db.commit()
+
+            return DevelopmentTrailDeleteResponse(
+                message="Trilha de desenvolvimento deletada com sucesso",
+                deleted_id=development_trail_id,
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao deletar trilha de desenvolvimento: {str(e)}"
             )
 
 
