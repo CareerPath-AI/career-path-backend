@@ -1,18 +1,26 @@
+from fastapi import UploadFile, HTTPException
 from PyPDF2 import PdfReader
 from sqlalchemy.orm import Session
 from app.utils.resume_analysis_utils import analyze_with_gemini
 from app.models.user import User
 from app.models.resume_analysis import ResumeAnalysis
+from app.schemas.resume_analysis_schema import ResumeAnalysisResponse
 from datetime import datetime, timezone
 import io
 
 
 async def analyze_resume_service(
-    file_contents: bytes, filename: str, user: User, db: Session
+    file: UploadFile, current_user: User, db: Session
 ) -> dict:
     """
     Service para análise de currículo
     """
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF")
+    
+    # Lê o conteúdo do arquivo
+    file_contents = await file.read()
+    
     # Lê e extrai texto do PDF
     if len(file_contents) == 0:
         raise ValueError("O arquivo está vazio")
@@ -32,24 +40,32 @@ async def analyze_resume_service(
     if not text.strip():
         raise ValueError("Nenhum texto foi encontrado no PDF")
 
-    # Analisa o currículo com Gemini
-    analysis_result = await analyze_with_gemini(text)
+    try:
+        # Analisa o currículo com Gemini
+        analysis_result = await analyze_with_gemini(text)
 
-    # Salva no banco
-    resume_analysis = ResumeAnalysis(
-        user_id=user.id,
-        original_filename=filename,
-        analysis_result=analysis_result,
-        created_at=datetime.now(timezone.utc)
-    )
+        # Salva no banco
+        resume_analysis = ResumeAnalysis(
+            user_id=current_user.id,
+            original_filename=file.filename,
+            analysis_result=analysis_result,
+            created_at=datetime.now(timezone.utc)
+        )
 
-    db.add(resume_analysis)
-    db.commit()
-    db.refresh(resume_analysis)
+        db.add(resume_analysis)
+        db.commit()
+        db.refresh(resume_analysis)
 
-    return {
-        "id": resume_analysis.id,
-        "original_filename": filename,
-        "analysis_result": analysis_result,
-        "created_at": resume_analysis.created_at
-    }
+        return ResumeAnalysisResponse(
+            id = resume_analysis.id,
+            original_filename=file.filename,
+            analysis_result=analysis_result,
+            created_at=resume_analysis.created_at
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao processar o currículo: {str(e)}"
+        )

@@ -19,25 +19,8 @@ async def analyze_resume(
     """
     Faz análise do resumo enviado em .pdf e retorna para o usuário.
     """
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF")
-
-    try:
-        # Lê o conteúdo do arquivo
-        contents = await file.read()
-
-        # Chama o service para processar a análise
-        result = await analyze_resume_service(contents, file.filename, current_user, db)
-
-        return result
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Erro ao processar o currículo: {str(e)}"
-        )
+    resume_analysis = await analyze_resume_service(file, current_user, db)
+    return resume_analysis
 
 
 @analyze_resume_router.get("/", response_model=ResumeAnalysisListResponse)
