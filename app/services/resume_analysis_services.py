@@ -4,7 +4,11 @@ from sqlalchemy.orm import Session
 from app.utils.resume_analysis_utils import analyze_with_gemini
 from app.models.user import User
 from app.models.resume_analysis import ResumeAnalysis
-from app.schemas.resume_analysis_schema import ResumeAnalysisResponse, ResumeAnalysisListResponse
+from app.schemas.resume_analysis_schema import (
+    ResumeAnalysisResponse, 
+    ResumeAnalysisListResponse,
+    ResumeAnalysisDeleteResponse
+)
 from datetime import datetime, timezone
 import io
 
@@ -117,7 +121,12 @@ class ResumeAnalysisService():
                     detail="Análise não encontrada"
                 )
             
-            return analysis
+            return ResumeAnalysisResponse(
+                id=analysis.id,
+                original_filename=analysis.original_filename,
+                analysis_result=analysis.analysis_result,
+                created_at=analysis.created_at
+            )
         
         except HTTPException:
             raise
@@ -125,6 +134,41 @@ class ResumeAnalysisService():
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro ao buscar análise: {str(e)}"
+            )
+
+    async def delete_resume_analysis_service(
+            self, analysis_id: int, current_user: User, db: Session
+    ):
+        """
+        Serviço para deletar uma análise de currículo do usuário
+        """
+        try:
+            analysis = db.query(ResumeAnalysis).filter(
+                ResumeAnalysis.id == analysis_id,
+                ResumeAnalysis.user_id == current_user.id
+            ).first()
+
+            if not analysis:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Análise não encontrada"
+                )
+            
+            db.delete(analysis)
+            db.commit()
+
+            return ResumeAnalysisDeleteResponse(
+                message="Análise deletada com sucesso",
+                deleted_id=analysis_id
+            )
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao deletar análise: {str(e)}"
             )
 
 

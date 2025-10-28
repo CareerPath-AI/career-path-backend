@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Query
+from fastapi import APIRouter, UploadFile, File, Depends, Query
 from sqlalchemy.orm import Session
 from app.models.user import User
-from app.models.resume_analysis import ResumeAnalysis
 from app.services.resume_analysis_services import resume_analysis_service
 from app.dependencies.security import verify_token
 from app.dependencies.database import get_db
@@ -65,31 +64,7 @@ async def delete_resume_analysis(
     """
     Delete uma análise de currículo do usuário.
     """
-    try:
-        analysis = db.query(ResumeAnalysis).filter(
-            ResumeAnalysis.id == analysis_id,
-            ResumeAnalysis.user_id == current_user.id
-        ).first()
-
-        if not analysis:
-            raise HTTPException(
-                status_code=404,
-                detail="Análise não encontrada"
-            )
-        
-        db.delete(analysis)
-        db.commit()
-
-        return ResumeAnalysisDeleteResponse(
-            message="Análise deletada com sucesso",
-            deleted_id=analysis_id
-        )
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao deletar análise: {str(e)}"
-        )
+    result = await resume_analysis_service.delete_resume_analysis_service(
+        analysis_id, current_user, db
+    )
+    return result
