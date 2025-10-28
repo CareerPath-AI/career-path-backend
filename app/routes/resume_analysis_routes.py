@@ -1,8 +1,7 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, UploadFile, File, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
-from app.models.resume_analysis import ResumeAnalysis
-from app.services.resume_analysis_services import analyze_resume_service
+from app.services.resume_analysis_services import resume_analysis_service
 from app.dependencies.security import verify_token
 from app.dependencies.database import get_db
 from app.schemas.resume_analysis_schema import ResumeAnalysisResponse, ResumeAnalysisListResponse, ResumeAnalysisDeleteResponse
@@ -14,85 +13,45 @@ analyze_resume_router = APIRouter(prefix="/analyze-resume", tags=["resume-analys
 async def analyze_resume(
     file: UploadFile = File(...),
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Faz análise do resumo enviado em .pdf e retorna para o usuário.
     """
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF")
-
-    try:
-        # Lê o conteúdo do arquivo
-        contents = await file.read()
-
-        # Chama o service para processar a análise
-        result = await analyze_resume_service(contents, file.filename, current_user, db)
-
-        return result
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Erro ao processar o currículo: {str(e)}"
-        )
+    resume_analysis = await resume_analysis_service.analyze_resume_service(
+        file, current_user, db
+    )
+    return resume_analysis
 
 
 @analyze_resume_router.get("/", response_model=ResumeAnalysisListResponse)
 async def get_my_resume_analyses(
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     skip: int = Query(0, ge=0, description="Número de itens para pular"),
     limit: int = Query(100, ge=1, le=100, description="Número máximo de itens por página")
 ):
     """
     Retorna todas as análises de currículo do usuário autenticado.
     """
-    try:
-        analyses = db.query(ResumeAnalysis).filter(
-            ResumeAnalysis.user_id == current_user.id
-        ).order_by(
-            ResumeAnalysis.created_at.desc()
-        ).offset(skip).limit(limit).all()
-
-        total_count = db.query(ResumeAnalysis).filter(
-            ResumeAnalysis.user_id == current_user.id
-        ).count()
-
-        return ResumeAnalysisListResponse(
-            analyses=analyses,
-            total_count=total_count
-        )
-    
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao buscar análises: {str(e)}"
-        )
+    analyses = await resume_analysis_service.get_resume_analysis_service(
+        current_user, db, skip, limit
+    )
+    return analyses
     
 
 @analyze_resume_router.get("/{analysis_id}", response_model=ResumeAnalysisResponse)
 async def get_resume_analysis(
     analysis_id: int,
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Retorna uma análise específica do usuário.
     """
-    analysis = db.query(ResumeAnalysis).filter(
-        ResumeAnalysis.id == analysis_id,
-        ResumeAnalysis.user_id == current_user.id
-    ).first()
-
-    if not analysis:
-        raise HTTPException(
-            status_code=404,
-            detail="Análise não encontrada"
-        )
-    
+    analysis = await resume_analysis_service.get_resume_analysis_by_id_service(
+        analysis_id, current_user, db
+    )
     return analysis
 
 
@@ -100,36 +59,12 @@ async def get_resume_analysis(
 async def delete_resume_analysis(
     analysis_id: int,
     current_user: User = Depends(verify_token),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
-    Delete uma análise de currículo do usuário.
+    Deleta uma análise de currículo do usuário.
     """
-    try:
-        analysis = db.query(ResumeAnalysis).filter(
-            ResumeAnalysis.id == analysis_id,
-            ResumeAnalysis.user_id == current_user.id
-        ).first()
-
-        if not analysis:
-            raise HTTPException(
-                status_code=404,
-                detail="Análise não encontrada"
-            )
-        
-        db.delete(analysis)
-        db.commit()
-
-        return ResumeAnalysisDeleteResponse(
-            message="Análise deletada com sucesso",
-            deleted_id=analysis_id
-        )
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao deletar análise: {str(e)}"
-        )
+    result = await resume_analysis_service.delete_resume_analysis_service(
+        analysis_id, current_user, db
+    )
+    return result

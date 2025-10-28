@@ -1,10 +1,9 @@
-from fastapi import Depends
 from app.core.config import settings
-from app.dependencies.database import get_db
 from app.models.user import User
 from app.models.token_blacklist import TokenBlacklist
 from passlib.context import CryptContext
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 
@@ -22,17 +21,16 @@ def create_token(
     return encoded_jwt
 
 
-def is_token_blacklisted(token: str, db: Session) -> bool:
+async def is_token_blacklisted(token: str, db: AsyncSession) -> bool:
     """
     Verifica se o token está na blacklist
     """
-    blacklisted_token = db.query(TokenBlacklist).filter(
-        TokenBlacklist.token == token
-    ).first()
+    result = await db.execute(select(TokenBlacklist).where(TokenBlacklist.token == token))
+    blacklisted_token = result.scalar_one_or_none()
     return blacklisted_token is not None
 
 
-def add_token_to_blacklist(token: str, db: Session):
+async def add_token_to_blacklist(token: str, db: AsyncSession):
     """
     Adiciona token à blacklist
     """
@@ -47,7 +45,7 @@ def add_token_to_blacklist(token: str, db: Session):
             expires_at=expires_at
         )
         db.add(blacklisted_token)
-        db.commit()
+        await db.commit()
     except JWTError:
         # Caso o token seja invalido, ainda assim adiciona a blacklist
         expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
@@ -56,11 +54,12 @@ def add_token_to_blacklist(token: str, db: Session):
             expires_at=expires_at
         )
         db.add(blacklisted_token)
-        db.commit()
+        await db.commit()
 
 
-def authenticate_user(email: str, password: str, session: Session = Depends(get_db)):
-    user = session.query(User).filter(User.email == email).first()
+async def authenticate_user(email: str, password: str, session: AsyncSession):
+    result = await session.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
     if not user:
         return False
     elif not bcrypt_context.verify(password, user.password_hash):

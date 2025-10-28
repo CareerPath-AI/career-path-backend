@@ -1,6 +1,6 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.utils.token_cleanup import cleanup_expired_tokens
-from app.dependencies.database import get_db
+from app.dependencies.database import get_db_sync
 
 scheduler = BackgroundScheduler()
 
@@ -9,7 +9,7 @@ def scheduled_cleanup_job():
     """
     Executa a limpeza com criação e fechamento de sessão.
     """
-    db = next(get_db())
+    db = next(get_db_sync())
     try:
         cleanup_expired_tokens(db)
     except Exception as e:

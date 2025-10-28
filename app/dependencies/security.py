@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.core.security import is_token_blacklisted
 from app.dependencies.database import get_db
@@ -10,12 +11,12 @@ from app.core.config import settings
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login-form")
 
 
-def verify_token(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+async def verify_token(
+    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
 ):
     try:
         # Verifica se o token ta na blacklist
-        if is_token_blacklisted(token, db):
+        if await is_token_blacklisted(token, db):
             raise HTTPException(
                 status_code=401,
                 detail="Token revoked"
@@ -34,7 +35,9 @@ def verify_token(
     except JWTError:
         raise HTTPException(status_code=401, detail="Token é inválido ou está expirado")
     
-    user = db.query(User).filter(User.id == user_id).first()
+    result = await db.execute(select(User).where(User.id == int(user_id)))
+    user = result.scalar_one_or_none()
+
     if user is None:
         raise HTTPException(
             status_code=401,

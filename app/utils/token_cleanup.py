@@ -2,7 +2,7 @@ from app.models.token_blacklist import TokenBlacklist
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-def cleanup_expired_tokens(db: Session):
+def cleanup_expired_tokens(db: Session) -> int:
     """
     Remove tokens expirados da blacklist
     """
