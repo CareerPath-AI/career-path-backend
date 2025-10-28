@@ -36,27 +36,10 @@ async def get_my_interview_guides(
     """
     Retorna todos os interview_guides do usuário autenticado.
     """
-    try:
-        interview_guides = db.query(InterviewGuide).filter(
-            InterviewGuide.user_id == current_user.id
-        ).order_by(
-            InterviewGuide.created_at.desc()
-        ).offset(skip).limit(limit).all()
-
-        total_count = db.query(InterviewGuide).filter(
-            InterviewGuide.user_id == current_user.id
-        ).count()
-
-        return InterviewGuideListResponse(
-            interview_guides=interview_guides,
-            total_count=total_count
-        )
-    
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao buscar análises: {str(e)}"
-        )
+    interview_guides = await interview_guide_service.get_interview_guide_service(
+        current_user, db, skip, limit
+    )
+    return interview_guides
 
 
 @interview_guide_router.get("/{interview_guide_id}", response_model=InterviewGuideResponse)
@@ -68,17 +51,9 @@ async def get_interview_guide(
     """
     Retorna um guia de entrevista específico do usuário.
     """
-    interview_guide = db.query(InterviewGuide).filter(
-        InterviewGuide.id == interview_guide_id,
-        InterviewGuide.user_id == current_user.id
-    ).first()
-
-    if not interview_guide:
-        raise HTTPException(
-            status_code=404,
-            detail="Guia de entrevista não encontrado"
-        )
-    
+    interview_guide = await interview_guide_service.get_interview_guide_by_id_service(
+        interview_guide_id, current_user, db
+    )
     return interview_guide
 
 
