@@ -7,6 +7,7 @@ from app.dependencies.security import verify_token
 from app.core.security import bcrypt_context
 from app.models.user import User
 from app.core.security import authenticate_user, create_token, add_token_to_blacklist
+from app.services.user_services import user_service
 from datetime import timedelta
 
 
@@ -18,22 +19,7 @@ async def create_account(user_data: RegisterRequest, session: Session = Depends(
     """
     Cria um novo usuário no banco de dados.
     """
-    user = session.query(User).filter(User.email == user_data.email).first()
-    if user:
-        # Usuario com esse email ja existe
-        raise HTTPException(
-            status_code=400, detail="Email já está em uso"
-        )
-    else:
-        crypted_password = bcrypt_context.hash(user_data.password)
-        new_user = User(
-            user_data.name,
-            user_data.email,
-            crypted_password
-        )
-        session.add(new_user)
-        session.commit()
-        return MessageResponse(message="Usuário criado com sucesso")
+    return user_service.create_user_account(user_data, session)
     
 
 @auth_router.post("/login", response_model=TokenResponse)
@@ -78,10 +64,10 @@ async def use_refresh_token(user: User = Depends(verify_token)):
     Rota para gerar novo access token
     """
     access_token = create_token(user.id)
-    return {
-        "access_token": access_token,
-        "token_type": "Bearer"
-    }
+    return RefreshTokenResponse(
+        access_token=access_token,
+        token_type="Bearer"
+    )
 
 
 @auth_router.post("/logout", response_model=MessageResponse)
