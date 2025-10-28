@@ -4,11 +4,9 @@ from app.schemas.auth_schema import RegisterRequest, LoginRequest, TokenResponse
 from sqlalchemy.orm import Session
 from app.dependencies.database import get_db
 from app.dependencies.security import verify_token
-from app.core.security import bcrypt_context
 from app.models.user import User
 from app.core.security import authenticate_user, create_token, add_token_to_blacklist
 from app.services.user_services import user_service
-from datetime import timedelta
 
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
@@ -27,20 +25,7 @@ async def login(login_schema: LoginRequest, session: Session = Depends(get_db)):
     """
     Autentica usuários no sistema.
     """
-    user = authenticate_user(login_schema.email, login_schema.password, session)
-    if not user:
-        raise HTTPException(
-            status_code=400,
-            detail="Usuário não encontrado ou credenciais inválidas"
-        )
-    
-    access_token = create_token(user.id)
-    refresh_token = create_token(user.id, token_duration=timedelta(days=7))
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        token_type="Bearer"
-    )
+    return user_service.login(login_schema, session)
 
 
 @auth_router.post("/login-form", response_model=TokenResponse)
