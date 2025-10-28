@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Query
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.resume_analysis import ResumeAnalysis
-from app.services.resume_analysis_services import analyze_resume_service
+from app.services.resume_analysis_services import resume_analysis_service
 from app.dependencies.security import verify_token
 from app.dependencies.database import get_db
 from app.schemas.resume_analysis_schema import ResumeAnalysisResponse, ResumeAnalysisListResponse, ResumeAnalysisDeleteResponse
@@ -19,7 +19,9 @@ async def analyze_resume(
     """
     Faz análise do resumo enviado em .pdf e retorna para o usuário.
     """
-    resume_analysis = await analyze_resume_service(file, current_user, db)
+    resume_analysis = await resume_analysis_service.analyze_resume_service(
+        file, current_user, db
+    )
     return resume_analysis
 
 
@@ -33,27 +35,10 @@ async def get_my_resume_analyses(
     """
     Retorna todas as análises de currículo do usuário autenticado.
     """
-    try:
-        analyses = db.query(ResumeAnalysis).filter(
-            ResumeAnalysis.user_id == current_user.id
-        ).order_by(
-            ResumeAnalysis.created_at.desc()
-        ).offset(skip).limit(limit).all()
-
-        total_count = db.query(ResumeAnalysis).filter(
-            ResumeAnalysis.user_id == current_user.id
-        ).count()
-
-        return ResumeAnalysisListResponse(
-            analyses=analyses,
-            total_count=total_count
-        )
-    
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao buscar análises: {str(e)}"
-        )
+    analyses = await resume_analysis_service.get_resume_analysis_service(
+        current_user, db, skip, limit
+    )
+    return analyses
     
 
 @analyze_resume_router.get("/{analysis_id}", response_model=ResumeAnalysisResponse)
@@ -65,17 +50,9 @@ async def get_resume_analysis(
     """
     Retorna uma análise específica do usuário.
     """
-    analysis = db.query(ResumeAnalysis).filter(
-        ResumeAnalysis.id == analysis_id,
-        ResumeAnalysis.user_id == current_user.id
-    ).first()
-
-    if not analysis:
-        raise HTTPException(
-            status_code=404,
-            detail="Análise não encontrada"
-        )
-    
+    analysis = await resume_analysis_service.get_resume_analysis_by_id_service(
+        analysis_id, current_user, db
+    )
     return analysis
 
 
