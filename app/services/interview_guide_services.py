@@ -2,7 +2,11 @@ from fastapi import HTTPException, UploadFile
 from app.models.user import User
 from app.utils.interview_guide_utils import generate_interview_guide_with_gemini
 from app.models.interview_guide import InterviewGuide
-from app.schemas.interview_guide_schema import InterviewGuideResponse, InterviewGuideListResponse
+from app.schemas.interview_guide_schema import (
+    InterviewGuideResponse, 
+    InterviewGuideListResponse,
+    InterviewGuideDeleteResponse
+)
 from sqlalchemy.orm import Session
 from PyPDF2 import PdfReader
 import io
@@ -108,6 +112,41 @@ class InterviewGuideService:
             )
         
         return interview_guide
+    
+    async def delete_interview_guide_service(
+        self, interview_guide_id: int, current_user: User, db: Session
+    ):
+        """
+        Serviço para deletar um guia de entrevista do usuário
+        """
+        try:
+            interview_guide = db.query(InterviewGuide).filter(
+                InterviewGuide.id == interview_guide_id,
+                InterviewGuide.user_id == current_user.id
+            ).first()
+
+            if not interview_guide:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Guia de entrevista não encontrado"
+                )
+            
+            db.delete(interview_guide)
+            db.commit()
+
+            return InterviewGuideDeleteResponse(
+                message="Guia de entrevista deletado com sucesso",
+                deleted_id=interview_guide_id
+            )
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao deletar guia de entrevista: {str(e)}"
+            )
 
 
 interview_guide_service = InterviewGuideService()
