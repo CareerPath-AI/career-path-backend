@@ -74,9 +74,4 @@ class UserService:
         await add_token_to_blacklist(token, self.user_repository.session)
 
         return MessageResponse(message="Logout realizado com sucesso")
-
-    async def get_user_profile(self, user_id: int) -> User:
-        user = await self.user_repository.get_by_id(user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="Usuário não encontrado")
-        return user
+    

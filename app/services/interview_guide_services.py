@@ -7,10 +7,9 @@ from app.schemas.interview_guide_schema import (
     InterviewGuideListResponse,
     InterviewGuideDeleteResponse
 )
+from app.utils.pdf_utils import check_pdf
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from PyPDF2 import PdfReader
-import io
 
 
 class InterviewGuideService:
@@ -19,30 +18,7 @@ class InterviewGuideService:
         Service para geração de guia de entrevista
         """
         try:
-            if not file.filename.lower().endswith(".pdf"):
-                raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF")
-
-            # Lê o conteúdo do arquivo
-            file_contents = await file.read()
-
-            # Lê e extrai texto do PDF
-            if len(file_contents) == 0:
-                raise ValueError("O arquivo está vazio")
-
-            pdf_file = io.BytesIO(file_contents)
-            reader = PdfReader(pdf_file)
-
-            if reader.is_encrypted:
-                raise ValueError("PDF criptografado não é suportado")
-
-            resume_text = ""
-            for page in reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    resume_text += page_text + "\n"
-
-            if not resume_text.strip():
-                raise ValueError("Nenhum texto foi encontrado no PDF")
+            resume_text = await check_pdf(file)
 
             # Gera o guia de entrevista com Gemini
             interview_guide_result = await generate_interview_guide_with_gemini(resume_text, job_description)
