@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+from datetime import datetime
 
 
 class InterviewGuide(Base):
@@ -14,3 +15,9 @@ class InterviewGuide(Base):
     created_at = Column(DateTime(timezone=True), default=func.now(), nullable=False)
 
     user = relationship("User", back_populates="interview_guide")
+
+    def __init__(self, user_id: int, interview_guide: dict, created_at: datetime):
+        self.user_id = user_id
+        self.interview_guide = interview_guide
+        self.created_at = created_at
+        

@@ -81,7 +81,7 @@ class ResumeAnalysisService():
         
     async def get_resume_analysis_by_id_service(
         self, analysis_id: int, current_user: User
-    ):
+    ) -> ResumeAnalysisResponse:
         """
         Serviço para obter uma análise de currículo específica do usuário
         """
