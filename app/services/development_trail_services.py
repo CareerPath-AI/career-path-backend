@@ -1,6 +1,4 @@
 from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from app.utils.development_trail_utils import (
     create_adaptive_development_trail_prompt,
     extract_json_from_response,
@@ -12,14 +10,18 @@ from app.schemas.development_trail_schema import (
     DevelopmentTrailDeleteResponse
 )
 from app.models.user import User
-from app.models.development_trail import DevelopmentTrail
+from app.repository.development_trail_repository import DevelopmentTrailRepository
 import google.generativeai as genai
+from datetime import datetime, timezone
 
 
 class DevelopmentTrailService:
+    def __init__(self, development_trail_repository: DevelopmentTrailRepository):
+        self.development_trail_repository = development_trail_repository
+
     async def generate_development_trail_with_gemini_service(
-        self, user_data: DevelopmentTrailRequest, current_user: User, db: AsyncSession
-    ) -> dict:
+        self, user_data: DevelopmentTrailRequest, current_user: User
+    ) -> DevelopmentTrailResponse:
         """Serviço que gera trilha de desenvolvimento usando Google Gemini"""
         # Cria prompt
         prompt = create_adaptive_development_trail_prompt(user_data)
@@ -38,14 +40,11 @@ class DevelopmentTrailService:
 
             development_trail_result = extract_json_from_response(response_text)
 
-            development_trail = DevelopmentTrail(
+            development_trail = await self.development_trail_repository.create(
                 user_id=current_user.id,
                 development_trail=development_trail_result,
+                created_at=datetime.now(timezone.utc)
             )
-
-            db.add(development_trail)
-            await db.commit()
-            await db.refresh(development_trail)
 
             return DevelopmentTrailResponse(
                 id=development_trail.id,
@@ -53,39 +52,29 @@ class DevelopmentTrailService:
             )
 
         except Exception as e:
-            await db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro interno ao gerar trilha de desenvolvimento: {str(e)}",
             )
         
     async def get_development_trail_service(
-        self, current_user: User, db: AsyncSession, skip: int, limit: int
-    ):
+        self, current_user: User, skip: int, limit: int
+    ) -> DevelopmentTrailListResponse:
         """
         Serviço que retorna todas as trilhas de desenvolvimento do usuário
         """
         try:
-            result = await db.execute(
-                select(DevelopmentTrail)
-                .where(DevelopmentTrail.user_id == current_user.id)
-                .order_by(DevelopmentTrail.created_at.desc())
-                .offset(skip)
-                .limit(limit)
-            )
-            development_trails = result.scalars().all() 
+            development_trails, total_count = await self.development_trail_repository.get_by_user_id(
+                user_id=current_user.id,
+                skip=skip,
+                limit=limit
+            ) 
 
             if not development_trails:
                 raise HTTPException(
                     status_code=404, detail="Nenhuma trilha de desenvolvimento encontrada"
                 )
-
-            count_result = await db.execute(
-                select(func.count(DevelopmentTrail.id))
-                .where(DevelopmentTrail.user_id == current_user.id)
-            )
-            total_count = count_result.scalar_one()
-
+            
             return DevelopmentTrailListResponse(
                 development_trails=development_trails, 
                 total_count=total_count
@@ -100,20 +89,16 @@ class DevelopmentTrailService:
             )
 
     async def get_development_trail_by_id_service(
-        self, development_trail_id: int, current_user: User, db: AsyncSession
+        self, development_trail_id: int, current_user: User
     ):
         """
         Serviço que retorna uma trlha de desenvolvimento específica do usuário
         """
         try:
-            result = await db.execute(
-                select(DevelopmentTrail)
-                .where(
-                    DevelopmentTrail.id == development_trail_id,
-                    DevelopmentTrail.user_id == current_user.id
-                )
-            )
-            development_trail = result.scalar_one_or_none() 
+            development_trail = await self.development_trail_repository.get_by_id_and_user_id(
+                development_trail_id=development_trail_id,
+                user_id=current_user.id
+            ) 
 
             if not development_trail:
                 raise HTTPException(
@@ -135,28 +120,23 @@ class DevelopmentTrailService:
             )
         
     async def delete_development_trail_service(
-        self, development_trail_id: int, current_user: User, db: AsyncSession
+        self, development_trail_id: int, current_user: User
     ):
         """
         Serviço para deletar uma trilha de desenvolvimento do usuário
         """
         try:
-            result = await db.execute(
-                select(DevelopmentTrail)
-                .where(
-                    DevelopmentTrail.id == development_trail_id,
-                    DevelopmentTrail.user_id == current_user.id
-                )
+            development_trail = await self.development_trail_repository.get_by_id_and_user_id(
+                development_trail_id=development_trail_id,
+                user_id=current_user.id
             )
-            development_trail = result.scalar_one_or_none()
 
             if not development_trail:
                 raise HTTPException(
                     status_code=404, detail="Trilha de desenvolvimento não encontrada"
                 )
             
-            await db.delete(development_trail)
-            await db.commit()
+            await self.development_trail_repository.delete(development_trail.id)
 
             return DevelopmentTrailDeleteResponse(
                 message="Trilha de desenvolvimento deletada com sucesso",
@@ -166,11 +146,7 @@ class DevelopmentTrailService:
         except HTTPException:
             raise
         except Exception as e:
-            await db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro ao deletar trilha de desenvolvimento: {str(e)}"
             )
-
-
-development_trail_service = DevelopmentTrailService()

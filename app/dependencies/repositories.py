@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repository.user_repository import UserRepository
 from app.repository.resume_analysis_repository import ResumeAnalysisRepository
 from app.repository.interview_guide_repository import InterviewGuideRepository
+from app.repository.development_trail_repository import DevelopmentTrailRepository
 from app.dependencies.database import get_db
 
 
@@ -22,3 +23,9 @@ async def get_interview_guide_repository(
     session: AsyncSession = Depends(get_db)
 ) -> InterviewGuideRepository:
     return InterviewGuideRepository(session)
+
+
+async def get_development_trail_repository(
+    session: AsyncSession = Depends(get_db)
+) -> DevelopmentTrailRepository:
+    return DevelopmentTrailRepository(session)

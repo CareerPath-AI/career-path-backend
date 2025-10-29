@@ -62,14 +62,13 @@ class ResumeAnalysisService():
                 limit=limit
             )
 
-            validated_analyses = []
-            for analysis in analyses:
-                if analysis.analysis_result is None:
-                    analysis.analysis_result = {}
-                validated_analyses.append(analysis)
+            if not analyses:
+                raise HTTPException(
+                    status_code=404, detail="Nenhuma análise de currículo encontrada"
+                )
 
             return ResumeAnalysisListResponse(
-                analyses=validated_analyses,
+                analyses=analyses,
                 total_count=total_count
             )
         
@@ -96,9 +95,6 @@ class ResumeAnalysisService():
                     status_code=404,
                     detail="Análise não encontrada"
                 )
-            
-            if analysis.analysis_result is None:
-                analysis.analysis_result = {}
             
             return ResumeAnalysisResponse(
                 id=analysis.id,
