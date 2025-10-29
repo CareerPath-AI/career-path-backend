@@ -1,9 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import Session, sessionmaker, DeclarativeBase
 from sqlalchemy import create_engine
 from app.core.config import settings
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 # Engine assincrono (para FastAPI)
 async_engine = create_async_engine(
