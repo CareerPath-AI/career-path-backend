@@ -8,12 +8,14 @@ from app.schemas.resume_analysis_schema import (
 )
 from app.utils.pdf_utils import check_pdf
 from app.repository.resume_analysis_repository import ResumeAnalysisRepository
+from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
 
-class ResumeAnalysisService():
-    def __init__(self, resume_analysis_repository: ResumeAnalysisRepository):
-        self.resume_analysis_repository = resume_analysis_repository
+class ResumeAnalysisService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.resume_analysis_repository = ResumeAnalysisRepository(db)
 
     async def analyze_resume_service(
         self, file: UploadFile, current_user: User,
@@ -35,6 +37,9 @@ class ResumeAnalysisService():
                 created_at=datetime.now(timezone.utc)
             )
 
+            await self.db.commit()
+            await self.db.refresh(resume_analysis)
+
             return ResumeAnalysisResponse(
                 id=resume_analysis.id,
                 original_filename=resume_analysis.original_filename,
@@ -43,15 +48,20 @@ class ResumeAnalysisService():
             )
         
         except ValueError as e:
+            await self.db.rollback()
             raise HTTPException(status_code=400, detail=str(e))
+        except HTTPException:
+            await self.db.rollback()
+            raise
         except Exception as e:
+            await self.db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"Erro ao processar o currículo: {str(e)}"
             )
     
     async def get_resume_analysis_service(
         self, current_user: User, skip: int, limit: int
-    ):
+    ) -> ResumeAnalysisListResponse:
         """
         Serviço para obter todas as análises de currículo do usuário
         """
@@ -72,6 +82,8 @@ class ResumeAnalysisService():
                 total_count=total_count
             )
         
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -113,7 +125,7 @@ class ResumeAnalysisService():
 
     async def delete_resume_analysis_service(
             self, analysis_id: int, current_user: User
-    ):
+    ) -> ResumeAnalysisDeleteResponse:
         """
         Serviço para deletar uma análise de currículo do usuário
         """
@@ -130,6 +142,8 @@ class ResumeAnalysisService():
                 )
             
             await self.resume_analysis_repository.delete(analysis.id)
+            
+            await self.db.commit()
 
             return ResumeAnalysisDeleteResponse(
                 message="Análise deletada com sucesso",
@@ -137,10 +151,11 @@ class ResumeAnalysisService():
             )
         
         except HTTPException:
+            await self.db.rollback()
             raise
         except Exception as e:
+            await self.db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro ao deletar análise: {str(e)}"
             )
-

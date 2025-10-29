@@ -8,14 +8,16 @@ from app.schemas.interview_guide_schema import (
 )
 from app.utils.pdf_utils import check_pdf
 from app.repository.interview_guide_repository import InterviewGuideRepository
+from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
 
 class InterviewGuideService:
-    def __init__(self, interview_guide_repository: InterviewGuideRepository):
-        self.interview_guide_repository = interview_guide_repository
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.interview_guide_repository = InterviewGuideRepository(db)
 
-    async def generate_interview_guide_service(self, file: UploadFile, job_description: str, current_user: User) -> dict:
+    async def generate_interview_guide_service(self, file: UploadFile, job_description: str, current_user: User) -> InterviewGuideResponse:
         """
         Service para geração de guia de entrevista
         """
@@ -31,14 +33,22 @@ class InterviewGuideService:
                 created_at=datetime.now(timezone.utc)
             )
 
+            await self.db.commit()
+            await self.db.refresh(interview_guide)
+
             return InterviewGuideResponse(
                 id=interview_guide.id,
                 interview_guide=interview_guide_result
             )
 
         except ValueError as e:
+            await self.db.rollback()
             raise HTTPException(status_code=400, detail=str(e))
+        except HTTPException:
+            await self.db.rollback()
+            raise
         except Exception as e:
+            await self.db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"Erro ao gerar guia de entrevista: {str(e)}"
             )
@@ -100,7 +110,7 @@ class InterviewGuideService:
     
     async def delete_interview_guide_service(
         self, interview_guide_id: int, current_user: User
-    ):
+    ) -> InterviewGuideDeleteResponse:
         """
         Serviço para deletar um guia de entrevista do usuário
         """
@@ -117,6 +127,7 @@ class InterviewGuideService:
                 )
             
             await self.interview_guide_repository.delete(interview_guide.id)
+            await self.db.commit()
 
             return InterviewGuideDeleteResponse(
                 message="Guia de entrevista deletado com sucesso",
@@ -124,8 +135,10 @@ class InterviewGuideService:
             )
         
         except HTTPException:
+            await self.db.rollback()
             raise
         except Exception as e:
+            await self.db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro ao deletar guia de entrevista: {str(e)}"

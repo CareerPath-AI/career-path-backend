@@ -11,13 +11,15 @@ from app.schemas.development_trail_schema import (
 )
 from app.models.user import User
 from app.repository.development_trail_repository import DevelopmentTrailRepository
+from sqlalchemy.ext.asyncio import AsyncSession
 import google.generativeai as genai
 from datetime import datetime, timezone
 
 
 class DevelopmentTrailService:
-    def __init__(self, development_trail_repository: DevelopmentTrailRepository):
-        self.development_trail_repository = development_trail_repository
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.development_trail_repository = DevelopmentTrailRepository(db)
 
     async def generate_development_trail_with_gemini_service(
         self, user_data: DevelopmentTrailRequest, current_user: User
@@ -37,7 +39,6 @@ class DevelopmentTrailService:
             )
 
             response_text = response.text.strip()
-
             development_trail_result = extract_json_from_response(response_text)
 
             development_trail = await self.development_trail_repository.create(
@@ -45,6 +46,9 @@ class DevelopmentTrailService:
                 development_trail=development_trail_result,
                 created_at=datetime.now(timezone.utc)
             )
+            
+            await self.db.commit()
+            await self.db.refresh(development_trail)
 
             return DevelopmentTrailResponse(
                 id=development_trail.id,
@@ -52,6 +56,7 @@ class DevelopmentTrailService:
             )
 
         except Exception as e:
+            await self.db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro interno ao gerar trilha de desenvolvimento: {str(e)}",
@@ -90,9 +95,9 @@ class DevelopmentTrailService:
 
     async def get_development_trail_by_id_service(
         self, development_trail_id: int, current_user: User
-    ):
+    ) -> DevelopmentTrailResponse:
         """
-        Serviço que retorna uma trlha de desenvolvimento específica do usuário
+        Serviço que retorna uma trilha de desenvolvimento específica do usuário
         """
         try:
             development_trail = await self.development_trail_repository.get_by_id_and_user_id(
@@ -121,7 +126,7 @@ class DevelopmentTrailService:
         
     async def delete_development_trail_service(
         self, development_trail_id: int, current_user: User
-    ):
+    ) -> DevelopmentTrailDeleteResponse:
         """
         Serviço para deletar uma trilha de desenvolvimento do usuário
         """
@@ -136,7 +141,8 @@ class DevelopmentTrailService:
                     status_code=404, detail="Trilha de desenvolvimento não encontrada"
                 )
             
-            await self.development_trail_repository.delete(development_trail.id)
+            await self.development_trail_repository.delete(development_trail_id)
+            await self.db.commit()
 
             return DevelopmentTrailDeleteResponse(
                 message="Trilha de desenvolvimento deletada com sucesso",
@@ -146,6 +152,7 @@ class DevelopmentTrailService:
         except HTTPException:
             raise
         except Exception as e:
+            await self.db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro ao deletar trilha de desenvolvimento: {str(e)}"

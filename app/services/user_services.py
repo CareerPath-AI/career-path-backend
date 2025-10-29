@@ -6,25 +6,40 @@ from app.schemas.auth_schema import RegisterRequest, LoginRequest
 from app.schemas.auth_schema import MessageResponse, TokenResponse, RefreshTokenResponse
 from datetime import timedelta
 from app.repository.user_repository import UserRepository
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class UserService:
-    def __init__(self, user_repository: UserRepository):
-        self.user_repository = user_repository
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.user_repository = UserRepository(db)
 
     async def create_user_account(self, user_data: RegisterRequest) -> MessageResponse:
-        if await self.user_repository.email_exists(user_data.email):
-            raise HTTPException(status_code=400, detail="Esse email já está em uso")
-        
-        crypted_password = bcrypt_context.hash(user_data.password)
-        
-        await self.user_repository.create(
-            name=user_data.name,
-            email=user_data.email,
-            password_hash=crypted_password
-        )
-        
-        return MessageResponse(message="Usuário criado com sucesso")
+        try:
+            if await self.user_repository.email_exists(user_data.email):
+                raise HTTPException(status_code=400, detail="Esse email já está em uso")
+            
+            crypted_password = bcrypt_context.hash(user_data.password)
+            
+            await self.user_repository.create(
+                name=user_data.name,
+                email=user_data.email,
+                password_hash=crypted_password
+            )
+
+            await self.db.commit()
+            
+            return MessageResponse(message="Usuário criado com sucesso")
+            
+        except HTTPException:
+            await self.db.rollback()
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro interno ao criar usuário: {str(e)}"
+            )
 
     async def authenticate_user(self, email: str, password: str) -> User:
         user = await self.user_repository.get_by_email(email)
@@ -71,7 +86,6 @@ class UserService:
         token = authorization.replace("Bearer ", "")
         
         # Note: add_token_to_blacklist precisa ser adaptado para usar repository
-        await add_token_to_blacklist(token, self.user_repository.session)
+        await add_token_to_blacklist(token, self.db)
 
         return MessageResponse(message="Logout realizado com sucesso")
-        

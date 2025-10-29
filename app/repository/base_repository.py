@@ -26,7 +26,6 @@ class BaseRepository(Generic[ModelType]):
         instance = self.model(**kwargs)
         self.session.add(instance)
         await self.session.flush()
-        await self.session.refresh(instance)
         return instance
 
     async def update(self, id: int, **kwargs) -> Optional[ModelType]:
@@ -41,3 +40,4 @@ class BaseRepository(Generic[ModelType]):
         await self.session.execute(
             delete(self.model).where(self.model.id == id)
         )
+        await self.session.flush()
