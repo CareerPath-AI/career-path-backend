@@ -74,4 +74,4 @@ class UserService:
         await add_token_to_blacklist(token, self.user_repository.session)
 
         return MessageResponse(message="Logout realizado com sucesso")
-    
+        
