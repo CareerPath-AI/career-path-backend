@@ -25,7 +25,7 @@ class BaseRepository(Generic[ModelType]):
     async def create(self, **kwargs) -> ModelType:
         instance = self.model(**kwargs)
         self.session.add(instance)
-        await self.session.commit()
+        await self.session.flush()
         await self.session.refresh(instance)
         return instance
 
@@ -35,12 +35,9 @@ class BaseRepository(Generic[ModelType]):
             .where(self.model.id == id)
             .values(**kwargs)
         )
-        await self.session.commit()
         return await self.get_by_id(id)
     
-    async def delete(self, id: int) -> bool:
+    async def delete(self, id: int) -> None:
         await self.session.execute(
             delete(self.model).where(self.model.id == id)
         )
-        await self.session.commit()
-        return True
