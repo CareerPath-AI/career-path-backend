@@ -29,14 +29,12 @@ class UserService:
     async def authenticate_user(self, email: str, password: str) -> User:
         user = await self.user_repository.get_by_email(email)
         
-        if not user or not bcrypt_context.verify(password, user.hashed_password):
+        if not user or not bcrypt_context.verify(password, user.password_hash):
             raise HTTPException(
                 status_code=400,
                 detail="Credenciais inválidas",
             )
         
-        # Atualiza último login
-        await self.user_repository.update_last_login(user.id)
         return user
 
     async def login(self, login_schema: LoginRequest) -> TokenResponse:

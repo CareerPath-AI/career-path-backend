@@ -35,26 +35,28 @@ async def add_token_to_blacklist(token: str, db: AsyncSession):
     Adiciona token à blacklist
     """
     try:
+        # Tenta decodificar o token para pegar a expiração real
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         expires_at = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-
-        blacklisted_token = TokenBlacklist(
-            token=token,
-            expires_at=expires_at
-        )
-        db.add(blacklisted_token)
-        await db.commit()
+        
     except JWTError:
-        # Caso o token seja invalido, ainda assim adiciona a blacklist
+        # Se o token é inválido ou expirado, usa expiração padrão
         expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    
+    try:
         blacklisted_token = TokenBlacklist(
             token=token,
             expires_at=expires_at
         )
+        
         db.add(blacklisted_token)
         await db.commit()
+        
+    except Exception as e:
+        await db.rollback()
+        print(f"Erro ao adicionar token à blacklist: {e}")
 
 
 async def authenticate_user(email: str, password: str, session: AsyncSession):

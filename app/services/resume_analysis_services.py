@@ -1,5 +1,4 @@
 from fastapi import UploadFile, HTTPException
-from PyPDF2 import PdfReader
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.resume_analysis_utils import analyze_with_gemini
@@ -10,8 +9,8 @@ from app.schemas.resume_analysis_schema import (
     ResumeAnalysisListResponse,
     ResumeAnalysisDeleteResponse
 )
+from app.utils.pdf_utils import check_pdf
 from datetime import datetime, timezone
-import io
 
 
 class ResumeAnalysisService():
@@ -21,30 +20,7 @@ class ResumeAnalysisService():
         """
         Service para análise de currículo
         """
-        if not file.filename.lower().endswith(".pdf"):
-            raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF")
-        
-        # Lê o conteúdo do arquivo
-        file_contents = await file.read()
-        
-        # Lê e extrai texto do PDF
-        if len(file_contents) == 0:
-            raise ValueError("O arquivo está vazio")
-
-        pdf_file = io.BytesIO(file_contents)
-        reader = PdfReader(pdf_file)
-
-        if reader.is_encrypted:
-            raise ValueError("PDF criptografado não é suportado")
-
-        text = ""
-        for page in reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
-
-        if not text.strip():
-            raise ValueError("Nenhum texto foi encontrado no PDF")
+        text = await check_pdf(file)
 
         try:
             # Analisa o currículo com Gemini
