@@ -4,6 +4,7 @@ from app.schemas.user_schema import (
     UserCreateRequest,
     UserUpdateRequest,
     UserUpdateResponse,
+    UserDeleteRequest
 )
 from app.services.user_services import UserService
 from app.dependencies.security import verify_token
@@ -35,3 +36,14 @@ async def update_user_data(
     """
     return await user_service.update_user(user_data, current_user)
 
+
+@user_router.delete("/me/delete", response_model=MessageResponse)
+async def delete(
+    user_data: UserDeleteRequest,
+    current_user: User = Depends(verify_token),
+    user_service: UserService = Depends(get_user_service),
+):
+    """
+    Deleta o usuário.
+    """
+    return await user_service.delete_user(user_data, current_user)

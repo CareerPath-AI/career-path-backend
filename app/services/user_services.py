@@ -2,7 +2,12 @@ from fastapi import HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from app.models.user import User
 from app.core.security import bcrypt_context, create_token, add_token_to_blacklist
-from app.schemas.user_schema import UserCreateRequest, UserUpdateRequest, UserUpdateResponse
+from app.schemas.user_schema import (
+    UserCreateRequest,
+    UserUpdateRequest,
+    UserUpdateResponse,
+    UserDeleteRequest,
+)
 from app.schemas.auth_schema import (
     MessageResponse,
     TokenResponse,
@@ -88,24 +93,45 @@ class UserService:
 
         return MessageResponse(message="Logout realizado com sucesso")
 
-    async def update_user(self, user_data: UserUpdateRequest, current_user: User) -> UserUpdateResponse:
+    async def update_user(
+        self, user_data: UserUpdateRequest, current_user: User
+    ) -> UserUpdateResponse:
         try:
-            if not any ([user_data.name, user_data.email, user_data.password]):
+            if not any([user_data.name, user_data.email, user_data.password]):
                 raise HTTPException(
-                    status_code=400,
-                    detail="Pelo menos um campo deve ser fornecido"
+                    status_code=400, detail="Pelo menos um campo deve ser fornecido"
                 )
-            
+
             updated_data = user_data.model_dump(exclude_unset=True, exclude_none=True)
 
-            updated_user = await self.user_repository.update(current_user.id, **updated_data)
+            updated_user = await self.user_repository.update(
+                current_user.id, **updated_data
+            )
 
             return UserUpdateResponse(
                 id=updated_user.id,
                 name=updated_user.name,
                 email=updated_user.email,
-                updated_at=updated_user.updated_at
+                updated_at=updated_user.updated_at,
             )
         except HTTPException:
-            raise HTTPException
+            raise
 
+    async def delete_user(
+        self, user_data: UserDeleteRequest, current_user: User
+    ) -> MessageResponse:
+        try:
+            if not bcrypt_context.verify(
+                user_data.password, current_user.password_hash
+            ):
+                raise HTTPException(status_code=400, detail="Senha incorreta")
+
+            await self.user_repository.delete(current_user.id)
+
+            return MessageResponse(message="Usuário deletado com sucesso")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Erro interno no servidor: {str(e)}"
+            )

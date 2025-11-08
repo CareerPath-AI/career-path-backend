@@ -28,5 +28,9 @@ class UserUpdateResponse(BaseModel):
     updated_at: datetime
 
 
+class UserDeleteRequest(BaseModel):
+    password: str
+
+
 class MessageResponse(BaseMessageResponse):
     pass
