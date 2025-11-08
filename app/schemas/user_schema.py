@@ -32,5 +32,11 @@ class UserDeleteRequest(BaseModel):
     password: str
 
 
+class UserGetResponse(BaseModel):
+    email: str
+    name: str
+    created_at: datetime
+
+
 class MessageResponse(BaseMessageResponse):
     pass

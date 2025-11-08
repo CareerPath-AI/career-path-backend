@@ -7,6 +7,7 @@ from app.schemas.user_schema import (
     UserUpdateRequest,
     UserUpdateResponse,
     UserDeleteRequest,
+    UserGetResponse
 )
 from app.schemas.auth_schema import (
     MessageResponse,
@@ -129,6 +130,28 @@ class UserService:
             await self.user_repository.delete(current_user.id)
 
             return MessageResponse(message="Usuário deletado com sucesso")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Erro interno no servidor: {str(e)}"
+            )
+
+    async def retrieve_user_data(self, current_user: User) -> UserGetResponse:
+        try:
+            user = await self.user_repository.get_by_id(current_user.id)
+
+            if not user:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Usuário não encontrado"
+                )
+            
+            return UserGetResponse(
+                email=user.email,
+                name=user.name,
+                created_at=user.created_at
+            )
         except HTTPException:
             raise
         except Exception as e:
