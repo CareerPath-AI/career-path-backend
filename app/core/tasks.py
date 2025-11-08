@@ -1,5 +1,5 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.utils.token_cleanup import cleanup_expired_tokens
+from app.utils.token_utils import cleanup_expired_tokens
 from app.dependencies.database import get_db_sync
 
 scheduler = BackgroundScheduler()

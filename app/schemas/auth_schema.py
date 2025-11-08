@@ -1,12 +1,5 @@
 from pydantic import BaseModel
-
-class RegisterRequest(BaseModel):
-    email: str
-    name: str
-    password: str
-
-    class Config:
-        from_attributes = True
+from app.schemas.base_schema import BaseMessageResponse
 
 
 class LoginRequest(BaseModel):
@@ -28,5 +21,5 @@ class RefreshTokenResponse(BaseModel):
     token_type: str
     
 
-class MessageResponse(BaseModel):
-    message: str
+class MessageResponse(BaseMessageResponse):
+    pass
