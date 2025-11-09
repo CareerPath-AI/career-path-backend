@@ -1,6 +1,7 @@
 from app.core.config import settings
 from app.models.user import User
 from app.models.token_blacklist import TokenBlacklist
+from app.core.logging_config import logger
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,7 +57,7 @@ async def add_token_to_blacklist(token: str, db: AsyncSession):
         
     except Exception as e:
         await db.rollback()
-        print(f"Erro ao adicionar token à blacklist: {e}")
+        logger.error(f"Erro ao adicionar token à blacklist: {e}")
 
 
 async def authenticate_user(email: str, password: str, session: AsyncSession):

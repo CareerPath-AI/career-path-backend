@@ -1,4 +1,5 @@
 from app.core.config import settings
+from app.core.logging_config import logger
 import google.generativeai as genai
 import re
 import json
@@ -107,7 +108,7 @@ async def generate_interview_guide_with_gemini(resume_text: str, job_description
     )
     
     response_text = response.text.strip()
-    print(f"Resposta bruta do Gemini: {response_text}")
+    logger.debug(f"Resposta bruta do Gemini: {response_text}")
     
     # Extrai JSON da resposta
     parsed_response = extract_interview_json_from_text(response_text)
@@ -128,13 +129,13 @@ def extract_interview_json_from_text(text: str) -> dict:
     cleaned_text = re.sub(r'\s*```$', '', cleaned_text)
     cleaned_text = cleaned_text.strip()
     
-    print(f"Texto limpo para extração JSON: {cleaned_text[:500]}...")  # Debug
+    logger.debug(f"Texto limpo para extração JSON: {cleaned_text[:500]}...")  # Debug
     
     try:
         # Tenta parsear diretamente como JSON
         return json.loads(cleaned_text)
     except json.JSONDecodeError as e:
-        print(f"Erro no parse JSON direto: {e}")
+        logger.error(f"Erro no parse JSON direto: {e}")
         
         # Tenta encontrar JSON dentro do texto usando regex
         json_pattern = r'\{.*\}'
@@ -143,11 +144,11 @@ def extract_interview_json_from_text(text: str) -> dict:
         if matches:
             # Pega o maior match (provavelmente o JSON completo)
             json_str = max(matches, key=len)
-            print(f"JSON encontrado via regex: {json_str[:500]}...")  # Debug
+            logger.debug(f"JSON encontrado via regex: {json_str[:500]}...")  # Debug
             try:
                 return json.loads(json_str)
             except json.JSONDecodeError as e2:
-                print(f"Erro no parse do JSON regex: {e2}")
+                logger.error(f"Erro no parse do JSON regex: {e2}")
         
         # Se nada funcionar, levanta exceção
         raise ValueError(f"Não foi possível extrair JSON válido do texto: {text[:500]}")

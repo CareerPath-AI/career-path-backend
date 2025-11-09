@@ -1,4 +1,5 @@
 from app.core.config import settings
+from app.core.logging_config import logger
 import google.generativeai as genai
 import json
 import re
@@ -90,10 +91,10 @@ async def analyze_with_gemini(resume_text: str) -> dict:
         )
 
         response_text = response.text.strip()
-        print(f"Resposta do Gemini: {response_text}")
+        logger.debug(f"Resposta do Gemini: {response_text}")
 
         return extract_analysis_json_from_text(response_text)
 
     except Exception as e:
-        print(f"Erro no Gemini: {str(e)}")
+        logger.error(f"Erro no Gemini: {str(e)}")
         return

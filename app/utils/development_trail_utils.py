@@ -1,4 +1,5 @@
 from app.schemas.development_trail_schema import DevelopmentTrailRequest
+from app.core.logging_config import logger
 import json
 import re
 
@@ -179,4 +180,4 @@ def extract_json_from_response(response_text: str) -> dict:
                 json_str = json_match.group()
                 return json.loads(json_str)
             except json.JSONDecodeError as e:
-                print(f"Falha ao parsear JSON extraído: {e}")
+                logger.error(f"Falha ao parsear JSON extraído: {e}")
