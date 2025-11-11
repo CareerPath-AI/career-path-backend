@@ -6,7 +6,7 @@ from app.schemas.resume_analysis_schema import ResumeAnalysisResponse, ResumeAna
 from app.dependencies.services import get_resume_analysis_service
 
 
-analyze_resume_router = APIRouter(prefix="/analyze-resume", tags=["resume-analysis"])
+analyze_resume_router = APIRouter(prefix="/api/v1/analyze-resume", tags=["resume-analysis"])
 
 
 @analyze_resume_router.post("/", response_model=ResumeAnalysisResponse)

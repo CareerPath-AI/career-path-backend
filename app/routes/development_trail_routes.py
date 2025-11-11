@@ -12,7 +12,7 @@ from app.dependencies.security import verify_token
 from app.dependencies.services import get_development_trail_service
 
 
-development_trail_router = APIRouter(prefix="/development-trail", tags=["development-trail"])
+development_trail_router = APIRouter(prefix="/api/v1/development-trail", tags=["development-trail"])
 
 
 @development_trail_router.post("/", response_model=DevelopmentTrailResponse)

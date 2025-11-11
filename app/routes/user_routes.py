@@ -13,7 +13,7 @@ from app.models.user import User
 from app.dependencies.services import get_user_service
 
 
-user_router = APIRouter(prefix="/users", tags=["users"])
+user_router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
 
 @user_router.post("/", response_model=MessageResponse, status_code=201)

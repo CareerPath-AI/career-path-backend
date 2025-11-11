@@ -1,13 +1,18 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from app.schemas.auth_schema import LoginRequest, TokenResponse, MessageResponse, RefreshTokenResponse
+from app.schemas.auth_schema import (
+    LoginRequest, 
+    TokenResponse, 
+    MessageResponse, 
+    RefreshTokenResponse, 
+)
 from app.dependencies.security import verify_token
 from app.models.user import User
 from app.services.user_services import UserService
 from app.dependencies.services import get_user_service
 
 
-auth_router = APIRouter(prefix="/auth", tags=["auth"])
+auth_router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
     
 
 @auth_router.post("/login", response_model=TokenResponse)
