@@ -12,7 +12,6 @@ from app.dependencies.security import verify_token
 from app.models.user import User
 from app.services.user_services import UserService
 from app.dependencies.services import get_user_service
-from app.core.email import send_email
 
 
 auth_router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -62,15 +61,3 @@ async def forgot_password(request_data: ForgotPasswordRequest, background_tasks:
 #     Reseta a senha do usuário.
 #     """
 #     return await user_service.reset_user_password(request_data)
-
-
-@auth_router.get("/test-email/")
-async def test_email(background_tasks: BackgroundTasks):
-    await send_email(
-        recipients=["dav.oliveira@aluno.uece.br"],
-        subject="Teste de envio Gmail",
-        template_name="password_reset.html",
-        context={"name": "Tester", "reset_url": "https://google.com"},
-        background_tasks=background_tasks
-    )
-    return {"status": "sent"}
