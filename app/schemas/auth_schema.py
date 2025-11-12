@@ -1,9 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from app.schemas.base_schema import BaseMessageResponse
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
     class Config:
@@ -19,7 +19,16 @@ class TokenResponse(BaseModel):
 class RefreshTokenResponse(BaseModel):
     access_token: str
     token_type: str
-    
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    reset_token: str
+    new_password: str
+
 
 class MessageResponse(BaseMessageResponse):
     pass

@@ -9,7 +9,7 @@ from app.utils.token_utils import decode_jwt_token
 from jose import JWTError
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login-form")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login-form")
 
 
 async def verify_token(

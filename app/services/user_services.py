@@ -2,6 +2,8 @@ from fastapi import HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from app.models.user import User
 from app.core.security import bcrypt_context, create_token, add_token_to_blacklist
+from app.core.email import send_password_reset_email
+from app.utils.token_utils import verify_reset_password_token
 from app.schemas.user_schema import (
     UserCreateRequest,
     UserUpdateRequest,
@@ -14,6 +16,8 @@ from app.schemas.auth_schema import (
     TokenResponse,
     RefreshTokenResponse,
     LoginRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest
 )
 from datetime import timedelta
 from app.repository.user_repository import UserRepository
@@ -158,3 +162,33 @@ class UserService:
             raise HTTPException(
                 status_code=500, detail=f"Erro interno no servidor: {str(e)}"
             )
+    
+    async def forgot_user_password(self, request_data: ForgotPasswordRequest, background_tasks) -> MessageResponse:
+        """
+        Recebe o email, busca usuário e envia email com token
+        """
+        try:
+            user = await self.user_repository.get_by_email(request_data.email)
+            if not user:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Erro ao gerar link para resetar senha"
+                )
+            
+            await send_password_reset_email(user, background_tasks)
+
+            return MessageResponse(message="Se o email existir, enviaremos instruções de reset")
+        except HTTPException:
+            raise
+
+    async def reset_user_password(self, request_data: ResetPasswordRequest):
+        """
+        Recebe o token + nova senha e atualiza no banco
+        """
+        try:
+            email = verify_reset_password_token(request_data.reset_token)
+            if not email:
+                raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+        except HTTPException:
+            raise
+

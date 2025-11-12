@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.auth_schema import (
     LoginRequest, 
     TokenResponse, 
     MessageResponse, 
-    RefreshTokenResponse, 
+    RefreshTokenResponse,
+    ForgotPasswordRequest,
+    ResetPasswordRequest
 )
 from app.dependencies.security import verify_token
 from app.models.user import User
 from app.services.user_services import UserService
 from app.dependencies.services import get_user_service
+from app.core.email import send_email
 
 
 auth_router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -46,3 +49,28 @@ async def logout(
     Faz logout do usuário adicionando o token à blacklist
     """
     return await user_service.logout(request, current_user)
+
+
+@auth_router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(request_data: ForgotPasswordRequest, background_tasks: BackgroundTasks, user_service: UserService = Depends(get_user_service)):
+    return await user_service.forgot_user_password(request_data, background_tasks)
+
+
+# @auth_router.post("/reset-password", response_model=MessageResponse)
+# async def reset_password(request_data: ResetPasswordRequest, user_service: UserService = Depends(get_user_service)):
+#     """
+#     Reseta a senha do usuário.
+#     """
+#     return await user_service.reset_user_password(request_data)
+
+
+@auth_router.get("/test-email/")
+async def test_email(background_tasks: BackgroundTasks):
+    await send_email(
+        recipients=["dav.oliveira@aluno.uece.br"],
+        subject="Teste de envio Gmail",
+        template_name="password_reset.html",
+        context={"name": "Tester", "reset_url": "https://google.com"},
+        background_tasks=background_tasks
+    )
+    return {"status": "sent"}

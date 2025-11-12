@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 from app.schemas.base_schema import BaseMessageResponse
 
 
 class UserCreateRequest(BaseModel):
-    email: str
+    email: EmailStr
     name: str
     password: str
 
@@ -14,7 +14,7 @@ class UserCreateRequest(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     name: Optional[str] = None
     password: Optional[str] = None
 
@@ -23,7 +23,7 @@ class UserUpdateRequest(BaseModel):
     
 
 class UserUpdateResponse(BaseModel):
-    email: str
+    email: EmailStr
     name: str
     updated_at: datetime
 
@@ -33,7 +33,7 @@ class UserDeleteRequest(BaseModel):
 
 
 class UserGetResponse(BaseModel):
-    email: str
+    email: EmailStr
     name: str
     created_at: datetime
 
