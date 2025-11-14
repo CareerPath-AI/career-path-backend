@@ -4,15 +4,6 @@ from datetime import datetime
 from app.schemas.base_schema import BaseMessageResponse
 
 
-class UserCreateRequest(BaseModel):
-    email: EmailStr
-    name: str
-    password: str
-
-    class Config:
-        from_attributes = True
-
-
 class UserUpdateRequest(BaseModel):
     email: Optional[EmailStr] = None
     name: Optional[str] = None

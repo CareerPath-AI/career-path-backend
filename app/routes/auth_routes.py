@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.auth_schema import (
+    RegisterRequest,
     LoginRequest, 
     TokenResponse, 
     MessageResponse, 
@@ -15,7 +16,17 @@ from app.dependencies.services import get_user_service
 
 
 auth_router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
-    
+
+
+@auth_router.post("/register", response_model=MessageResponse, status_code=201)
+async def create_account(
+    user_data: RegisterRequest, user_service: UserService = Depends(get_user_service)
+):
+    """
+    Cria um novo usuário no banco de dados.
+    """
+    return await user_service.create_user_account(user_data)
+
 
 @auth_router.post("/login", response_model=TokenResponse)
 async def login(login_schema: LoginRequest, user_service: UserService = Depends(get_user_service)):

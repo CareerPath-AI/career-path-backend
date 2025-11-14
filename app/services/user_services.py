@@ -5,13 +5,13 @@ from app.core.security import bcrypt_context, create_token, add_token_to_blackli
 from app.core.email import send_password_reset_email
 from app.utils.token_utils import verify_reset_password_token
 from app.schemas.user_schema import (
-    UserCreateRequest,
     UserUpdateRequest,
     UserUpdateResponse,
     UserDeleteRequest,
     UserGetResponse
 )
 from app.schemas.auth_schema import (
+    RegisterRequest,
     MessageResponse,
     TokenResponse,
     RefreshTokenResponse,
@@ -30,7 +30,7 @@ class UserService:
         self.user_repository = UserRepository(db)
 
     async def create_user_account(
-        self, user_data: UserCreateRequest
+        self, user_data: RegisterRequest
     ) -> MessageResponse:
         try:
             if await self.user_repository.email_exists(user_data.email):
