@@ -66,9 +66,9 @@ async def forgot_password(request_data: ForgotPasswordRequest, background_tasks:
     return await user_service.forgot_user_password(request_data, background_tasks)
 
 
-# @auth_router.post("/reset-password", response_model=MessageResponse)
-# async def reset_password(request_data: ResetPasswordRequest, user_service: UserService = Depends(get_user_service)):
-#     """
-#     Reseta a senha do usuário.
-#     """
-#     return await user_service.reset_user_password(request_data)
+@auth_router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(request_data: ResetPasswordRequest, user_service: UserService = Depends(get_user_service)):
+    """
+    Reseta a senha do usuário.
+    """
+    return await user_service.reset_user_password(request_data)

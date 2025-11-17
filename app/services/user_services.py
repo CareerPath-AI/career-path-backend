@@ -102,11 +102,18 @@ class UserService:
         self, user_data: UserUpdateRequest, current_user: User
     ) -> UserUpdateResponse:
         try:
-            if not any([user_data.name, user_data.email, user_data.password]):
+            if not any([user_data.name, user_data.email]):
                 raise HTTPException(
                     status_code=400, detail="Pelo menos um campo deve ser fornecido"
                 )
 
+            email_exists = await self.user_repository.get_by_email(user_data.email)
+            if email_exists:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Erro ao atualizar o email"
+                )
+            
             updated_data = user_data.model_dump(exclude_unset=True, exclude_none=True)
 
             updated_user = await self.user_repository.update(
@@ -181,14 +188,23 @@ class UserService:
         except HTTPException:
             raise
 
-    async def reset_user_password(self, request_data: ResetPasswordRequest):
-        """
-        Recebe o token + nova senha e atualiza no banco
-        """
+    async def reset_user_password(self, request_data: ResetPasswordRequest) -> MessageResponse:
         try:
             email = verify_reset_password_token(request_data.reset_token)
             if not email:
                 raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+
+            user = await self.user_repository.get_by_email(email)
+            if not user:
+                raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+            hashed_password = bcrypt_context.hash(request_data.new_password)
+
+            await self.user_repository.update_password(user.id, hashed_password)
+
+            return MessageResponse(message="Senha resetada com sucesso")
         except HTTPException:
             raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Erro interno ao resetar senha: {str(e)}")
 

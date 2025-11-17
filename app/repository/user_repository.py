@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.models.user import User
 from typing import Optional
 from app.repository.base_repository import BaseRepository
+from datetime import datetime, timezone
 
 
 class UserRepository(BaseRepository[User]):
@@ -24,3 +25,24 @@ class UserRepository(BaseRepository[User]):
         """
         user = await self.get_by_email(email)
         return user is not None
+    
+    async def update_password(self, user_id: int, hashed_password: str) -> None:
+        """
+        Atualiza apenas a senha do usuário
+        """
+        try:
+            user = await self.get_by_id(user_id)
+            if not user:
+                return None
+            
+            user.password_hash = hashed_password
+            user.updated_at = datetime.now(timezone.utc)
+            
+            self.session.add(user)
+            await self.session.flush()
+            await self.session.commit()
+            
+            return user
+        except Exception:
+            await self.session.rollback()
+            raise
