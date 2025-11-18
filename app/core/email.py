@@ -22,7 +22,7 @@ async def send_password_reset_email(user: User, background_tasks: BackgroundTask
 
     print(f"TOKEN PARA TESTES: {token}")
     
-    reset_url = f"{settings.FRONTEND_HOST}/reset-password?token={token}"
+    reset_url = f"{settings.FRONTEND_HOST}/reset?token={token}"
     
     data = {
         "app_name": settings.APP_NAME,
