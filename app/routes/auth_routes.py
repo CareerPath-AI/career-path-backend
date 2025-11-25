@@ -7,7 +7,8 @@ from app.schemas.auth_schema import (
     MessageResponse, 
     RefreshTokenResponse,
     ForgotPasswordRequest,
-    ResetPasswordRequest
+    ResetPasswordRequest,
+    LoginResponse,
 )
 from app.dependencies.security import verify_token
 from app.models.user import User
@@ -28,7 +29,7 @@ async def create_account(
     return await user_service.create_user_account(user_data)
 
 
-@auth_router.post("/login", response_model=TokenResponse)
+@auth_router.post("/login", response_model=LoginResponse)
 async def login(login_schema: LoginRequest, user_service: UserService = Depends(get_user_service)):
     """
     Autentica usuários no sistema.
@@ -36,7 +37,7 @@ async def login(login_schema: LoginRequest, user_service: UserService = Depends(
     return await user_service.login(login_schema)
 
 
-@auth_router.post("/login-form", response_model=TokenResponse)
+@auth_router.post("/login-form", response_model=LoginResponse)
 async def login_form(form_data: OAuth2PasswordRequestForm = Depends(), user_service: UserService = Depends(get_user_service)):
     return await user_service.login_form(form_data)
 

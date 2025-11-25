@@ -17,7 +17,9 @@ from app.schemas.auth_schema import (
     RefreshTokenResponse,
     LoginRequest,
     ForgotPasswordRequest,
-    ResetPasswordRequest
+    ResetPasswordRequest,
+    LoginResponse,
+    UserResponse,
 )
 from datetime import timedelta
 from app.repository.user_repository import UserRepository
@@ -64,22 +66,40 @@ class UserService:
 
         return user
 
-    async def login(self, login_schema: LoginRequest) -> TokenResponse:
+    async def login(self, login_schema: LoginRequest) -> LoginResponse:
         user = await self.authenticate_user(login_schema.email, login_schema.password)
 
         access_token = create_token(user.id)
         refresh_token = create_token(user.id, token_duration=timedelta(days=7))
 
-        return TokenResponse(
-            access_token=access_token, refresh_token=refresh_token, token_type="Bearer"
+        return LoginResponse(
+            data=UserResponse(
+                id=user.id,
+                email=user.email,
+                name=user.name,
+            ),
+            tokens=TokenResponse(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                token_type="Bearer",
+            )
         )
 
     async def login_form(self, form_data: OAuth2PasswordRequestForm) -> TokenResponse:
         user = await self.authenticate_user(form_data.username, form_data.password)
 
         access_token = create_token(user.id)
-        return TokenResponse(
-            access_token=access_token, refresh_token="", token_type="Bearer"
+        return LoginResponse(
+            data=UserResponse(
+                id=user.id,
+                email=user.email,
+                name=user.name,
+            ),
+            tokens=TokenResponse(
+                access_token=access_token,
+                refresh_token="",
+                token_type="Bearer",
+            )
         )
 
     async def use_refresh_token(self, user: User) -> RefreshTokenResponse:

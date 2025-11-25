@@ -68,6 +68,20 @@ class TokenResponse(BaseModel):
     token_type: str
 
 
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
+class LoginResponse(BaseModel):
+    data: UserResponse
+    tokens: TokenResponse
+
+
 class RefreshTokenResponse(BaseModel):
     access_token: str
     token_type: str
