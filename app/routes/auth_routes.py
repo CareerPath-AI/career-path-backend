@@ -37,7 +37,7 @@ async def login(login_schema: LoginRequest, user_service: UserService = Depends(
     return await user_service.login(login_schema)
 
 
-@auth_router.post("/login-form", response_model=LoginResponse)
+@auth_router.post("/login-form", response_model=TokenResponse)
 async def login_form(form_data: OAuth2PasswordRequestForm = Depends(), user_service: UserService = Depends(get_user_service)):
     return await user_service.login_form(form_data)
 

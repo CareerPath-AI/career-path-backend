@@ -89,18 +89,11 @@ class UserService:
         user = await self.authenticate_user(form_data.username, form_data.password)
 
         access_token = create_token(user.id)
-        return LoginResponse(
-            data=UserResponse(
-                id=user.id,
-                email=user.email,
-                name=user.name,
-            ),
-            tokens=TokenResponse(
+        return TokenResponse(
                 access_token=access_token,
                 refresh_token="",
                 token_type="Bearer",
             )
-        )
 
     async def use_refresh_token(self, user: User) -> RefreshTokenResponse:
         access_token = create_token(user.id)

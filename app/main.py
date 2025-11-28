@@ -31,6 +31,9 @@ app = FastAPI(
     version="1.0.0",
     debug=settings.DEBUG,
     lifespan=lifespan,
+    swagger_ui_parameters={
+        "persistAuthorization": True,
+    }
 )
 
 # Configurar CORS
