@@ -3,6 +3,7 @@ from app.schemas.development_trail_schema import (
     DevelopmentTrailRequest,
     DevelopmentTrailResponse,
     DevelopmentTrailListResponse,
+    DevelopmentTrailUpdateRequest,
     DevelopmentTrailDeleteResponse,
 )
 from app.services.development_trail_services import DevelopmentTrailService
@@ -89,6 +90,25 @@ async def get_development_trail(
     """
     development_trail = await development_trail_service.get_development_trail_by_id_service(
         development_trail_id, current_user
+    )
+    return development_trail
+
+
+@development_trail_router.patch(
+    "/{development_trail_id}", response_model=DevelopmentTrailResponse
+)
+async def update_development_trail(
+    development_trail_id: int,
+    update_data: DevelopmentTrailUpdateRequest,
+    current_user: User = Depends(verify_token),
+    development_trail_service: DevelopmentTrailService = Depends(get_development_trail_service)
+):
+    """
+    Atualiza o status de uma trilha de desenvolvimento.
+    Status permitidos: "In Progress", "Completed"
+    """
+    development_trail = await development_trail_service.update_development_trail_status_service(
+        development_trail_id, update_data, current_user
     )
     return development_trail
 

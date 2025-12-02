@@ -7,6 +7,7 @@ from app.schemas.development_trail_schema import (
     DevelopmentTrailRequest,
     DevelopmentTrailResponse,
     DevelopmentTrailListResponse,
+    DevelopmentTrailUpdateRequest,
     DevelopmentTrailDeleteResponse
 )
 from app.models.user import User
@@ -14,6 +15,7 @@ from app.repository.development_trail_repository import DevelopmentTrailReposito
 from sqlalchemy.ext.asyncio import AsyncSession
 import google.generativeai as genai
 from datetime import datetime, timezone
+from ..models.development_trail import DevelopmentTrailStatus
 
 
 class DevelopmentTrailService:
@@ -44,7 +46,9 @@ class DevelopmentTrailService:
             development_trail = await self.development_trail_repository.create(
                 user_id=current_user.id,
                 development_trail=development_trail_result,
-                created_at=datetime.now(timezone.utc)
+                status=DevelopmentTrailStatus.IN_PROGRESS.value,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
             
             await self.db.commit()
@@ -53,6 +57,9 @@ class DevelopmentTrailService:
             return DevelopmentTrailResponse(
                 id=development_trail.id,
                 development_trail=development_trail.development_trail,
+                status=development_trail.status,
+                created_at=development_trail.created_at,
+                updated_at=development_trail.updated_at
             )
 
         except Exception as e:
@@ -114,6 +121,9 @@ class DevelopmentTrailService:
             return DevelopmentTrailResponse(
                 id=development_trail.id,
                 development_trail=development_trail.development_trail,
+                status=development_trail.status,
+                created_at=development_trail.created_at,
+                updated_at=development_trail.updated_at
             )
         
         except HTTPException:
@@ -122,6 +132,52 @@ class DevelopmentTrailService:
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro ao buscar trilha de desenvolvimento: {str(e)}"
+            )
+        
+    async def update_development_trail_status_service(
+        self,
+        development_trail_id: int,
+        update_data: DevelopmentTrailUpdateRequest,
+        current_user: User
+    ) -> DevelopmentTrailResponse:
+        """
+        Serviço para atualizar o status de uma trilha de desenvolvimento
+        """
+        try:
+            development_trail = await self.development_trail_repository.get_by_id_and_user_id(
+                development_trail_id=development_trail_id,
+                user_id=current_user.id
+            )
+
+            if not development_trail:
+                raise HTTPException(
+                    status_code=404, detail="Trilha de desenvolvimento não encontrada"
+                )
+
+            # Atualizar o status
+            updated_trail = await self.development_trail_repository.update_status(
+                development_trail_id=development_trail_id,
+                status=update_data.status.value
+            )
+            
+            await self.db.commit()
+            await self.db.refresh(updated_trail)
+
+            return DevelopmentTrailResponse(
+                id=updated_trail.id,
+                development_trail=updated_trail.development_trail,
+                status=updated_trail.status,
+                created_at=updated_trail.created_at,
+                updated_at=updated_trail.updated_at
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao atualizar status da trilha de desenvolvimento: {str(e)}"
             )
         
     async def delete_development_trail_service(

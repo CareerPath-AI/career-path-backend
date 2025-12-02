@@ -1,8 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from app.models.development_trail import DevelopmentTrail
-from typing import Optional, List, Tuple
 from app.repository.base_repository import BaseRepository
+from typing import Optional, List, Tuple
+from datetime import datetime, timezone
 
 
 class DevelopmentTrailRepository(BaseRepository[DevelopmentTrail]):
@@ -51,4 +52,22 @@ class DevelopmentTrailRepository(BaseRepository[DevelopmentTrail]):
             )
         )
         return result.scalar_one_or_none()
+    
+    async def update_status(
+        self,
+        development_trail_id: int,
+        status: str
+    ) -> DevelopmentTrail:
+        query = (
+            update(DevelopmentTrail)
+            .where(DevelopmentTrail.id == development_trail_id)
+            .values(
+                status=status,
+                updated_at=datetime.now(timezone.utc)
+            )
+            .returning(DevelopmentTrail)
+        )
+        result = await self.session.execute(query)
+        updated_trail = result.scalar_one()
+        return updated_trail
     

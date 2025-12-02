@@ -1,5 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
+from datetime import datetime
+from ..models.development_trail import DevelopmentTrailStatus
 
 
 class DevelopmentTrailRequest(BaseModel):
@@ -20,14 +22,28 @@ class DevelopmentTrailRequest(BaseModel):
 class DevelopmentTrailResponse(BaseModel):
     id: int
     development_trail: Dict[str, Any]
+    status: str
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
+        use_enum_values = True
 
 
 class DevelopmentTrailListResponse(BaseModel):
     development_trails: List[DevelopmentTrailResponse]
     total_count: int
+
+
+class DevelopmentTrailUpdateRequest(BaseModel):
+    status: DevelopmentTrailStatus
+
+    @field_validator("status")
+    def validate_status(cls, v):
+        if v not in DevelopmentTrailStatus:
+            raise ValueError(f"Status deve ser um dos seguintes: {list(DevelopmentTrailStatus)}")
+        return v
 
 
 class DevelopmentTrailDeleteResponse(BaseModel):
