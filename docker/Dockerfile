@@ -21,6 +21,6 @@ COPY migrations ./migrations
 RUN uv sync --locked
 
 CMD ["sh", "-c", " \
-  /app/.venv/bin/alembic upgrade head && \
+  /app/.venv/bin/alembic upgrade heads && \
   /app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 \
 "]
