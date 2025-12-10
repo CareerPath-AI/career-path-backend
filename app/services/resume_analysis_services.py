@@ -29,6 +29,14 @@ class ResumeAnalysisService:
             # Analisa o currículo com Gemini
             analysis_result = await analyze_with_gemini(text)
 
+            # Valida o resultado antes de salvar
+            if not analysis_result or not isinstance(analysis_result, dict):
+                raise ValueError("Resultado da análise inválido ou vazio")
+
+            # Verifica se tem pelo menos alguns campos esperados
+            if not analysis_result.get("professional_summary") and not analysis_result.get("technical_skills"):
+                logger.warning("Resultado da análise pode estar incompleto, mas prosseguindo...")
+
             # Salva no banco
             resume_analysis = await self.resume_analysis_repository.create(
                 user_id=current_user.id,

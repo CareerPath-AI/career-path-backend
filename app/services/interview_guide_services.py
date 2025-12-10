@@ -8,6 +8,7 @@ from app.schemas.interview_guide_schema import (
 )
 from app.utils.pdf_utils import check_pdf
 from app.repository.interview_guide_repository import InterviewGuideRepository
+from app.core.logging_config import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
@@ -26,6 +27,14 @@ class InterviewGuideService:
 
             # Gera o guia de entrevista com Gemini
             interview_guide_result = await generate_interview_guide_with_gemini(resume_text, job_description)
+
+            # Valida o resultado antes de salvar
+            if not interview_guide_result or not isinstance(interview_guide_result, dict):
+                raise ValueError("Resultado do guia de entrevista inválido ou vazio")
+
+            # Verifica se tem pelo menos alguns campos esperados
+            if not interview_guide_result.get("preparation_overview") and not interview_guide_result.get("technical_preparation"):
+                logger.warning("Resultado do guia pode estar incompleto, mas prosseguindo...")
 
             interview_guide = await self.interview_guide_repository.create(
                 user_id=current_user.id,

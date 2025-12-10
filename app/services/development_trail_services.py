@@ -12,8 +12,11 @@ from app.schemas.development_trail_schema import (
 )
 from app.models.user import User
 from app.repository.development_trail_repository import DevelopmentTrailRepository
+from app.core.config import settings
+from app.core.logging_config import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 from datetime import datetime, timezone
 from ..models.development_trail import DevelopmentTrailStatus
 
@@ -27,21 +30,47 @@ class DevelopmentTrailService:
         self, user_data: DevelopmentTrailRequest, current_user: User
     ) -> DevelopmentTrailResponse:
         """Serviço que gera trilha de desenvolvimento usando Google Gemini"""
+        
+        if not settings.GEMINI_API_KEY:
+            raise HTTPException(
+                status_code=500,
+                detail="Chave da API do Gemini não configurada. Configure GEMINI_API_KEY no arquivo .env"
+            )
+        
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        
         # Cria prompt
         prompt = create_adaptive_development_trail_prompt(user_data)
 
         try:
-            model = genai.GenerativeModel("gemini-2.0-flash-001")
+            model = genai.GenerativeModel("gemini-2.5-flash")
 
             response = model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
-                    temperature=0.3, max_output_tokens=2000, top_p=0.8, top_k=40
+                    temperature=0.3, 
+                    max_output_tokens=10000,  # Aumentado para prevenir truncamento
+                    top_p=0.8, 
+                    top_k=40
                 ),
             )
 
+            # Verifica se a resposta foi truncada
+            if hasattr(response.candidates[0], 'finish_reason') and response.candidates[0].finish_reason == 'MAX_OUTPUT_TOKENS':
+                logger.warning("Resposta do Gemini foi truncada devido ao limite de tokens")
+
             response_text = response.text.strip()
+            logger.debug(f"Resposta bruta do Gemini (primeiros 500 chars): {response_text[:500]}")
+            
             development_trail_result = extract_json_from_response(response_text)
+
+            # Valida o resultado antes de salvar
+            if not development_trail_result or not isinstance(development_trail_result, dict):
+                raise ValueError("Resultado da trilha inválido ou vazio")
+
+            # Verifica se tem pelo menos alguns campos esperados
+            if not development_trail_result.get("user_profile_summary") and not development_trail_result.get("development_phases"):
+                logger.warning("Resultado da trilha pode estar incompleto, mas prosseguindo...")
 
             development_trail = await self.development_trail_repository.create(
                 user_id=current_user.id,
@@ -62,11 +91,54 @@ class DevelopmentTrailService:
                 updated_at=development_trail.updated_at
             )
 
-        except Exception as e:
+        except google_exceptions.ResourceExhausted as e:
             await self.db.rollback()
+            error_msg = str(e)
+            logger.error(f"ERRO ao gerar trilha: Quota da API do Gemini excedida. {error_msg}")
+            if "quota" in error_msg.lower() or "429" in error_msg:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Limite de quota da API do Gemini excedido. Por favor, aguarde alguns minutos ou verifique sua conta na Google AI Studio."
+                )
             raise HTTPException(
                 status_code=500,
-                detail=f"Erro interno ao gerar trilha de desenvolvimento: {str(e)}",
+                detail=f"Erro de quota na API do Gemini: {error_msg}"
+            )
+            
+        except google_exceptions.InvalidArgument as e:
+            await self.db.rollback()
+            error_msg = str(e)
+            logger.error(f"ERRO ao gerar trilha: Argumento inválido. {error_msg}")
+            if "API key" in error_msg or "expired" in error_msg.lower():
+                raise HTTPException(
+                    status_code=500,
+                    detail="Chave da API do Gemini inválida ou expirada. Verifique a configuração no arquivo .env"
+                )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro na chamada da API do Gemini: {error_msg}"
+            )
+            
+        except ValueError as e:
+            await self.db.rollback()
+            raise HTTPException(status_code=400, detail=str(e))
+            
+        except HTTPException:
+            await self.db.rollback()
+            raise
+            
+        except Exception as e:
+            await self.db.rollback()
+            error_msg = str(e)
+            logger.error(f"ERRO ao gerar trilha: {error_msg}")
+            if "API key" in error_msg or "expired" in error_msg.lower():
+                raise HTTPException(
+                    status_code=500,
+                    detail="Chave da API do Gemini inválida ou expirada. Verifique a configuração no arquivo .env"
+                )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro interno ao gerar trilha de desenvolvimento: {error_msg}"
             )
         
     async def get_development_trail_service(

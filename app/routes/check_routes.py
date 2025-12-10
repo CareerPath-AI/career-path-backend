@@ -30,5 +30,5 @@ async def healthcheck():
     return {
         "message": "API de Análise de Currículos com Google Gemini",
         "status": "online",
-        "model": "gemini-2.0-flash-001"
+        "model": "gemini-2.5-flash"
     }
