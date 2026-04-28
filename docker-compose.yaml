@@ -11,23 +11,36 @@ services:
     depends_on:
       career-path-postgres:
         condition: service_healthy
+    networks:
+      - shared-network   
 
   career-path-postgres:
     image: postgres:17
     container_name: career-path-postgres
     env_file:
       - .env.docker
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     restart: "always"
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d career-path-ai-db"]   # ← hardcoded
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - shared-network  
 
 volumes:
   postgres_data:
+
+networks:
+  shared-network:
+    driver: bridge
+    name: shared-network
