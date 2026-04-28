@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 import google.generativeai as genai
 
-check_router = APIRouter(prefix="/check", tags=["check"])
+check_router = APIRouter(prefix="/api/v1/check", tags=["check"])
 
 @check_router.get("/models")
 async def list_models():
@@ -30,5 +30,5 @@ async def healthcheck():
     return {
         "message": "API de Análise de Currículos com Google Gemini",
         "status": "online",
-        "model": "gemini-2.0-flash-001"
+        "model": "gemini-2.5-flash"
     }

@@ -1,108 +1,97 @@
 from fastapi import UploadFile, HTTPException
-from PyPDF2 import PdfReader
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.resume_analysis_utils import analyze_with_gemini
 from app.models.user import User
-from app.models.resume_analysis import ResumeAnalysis
 from app.schemas.resume_analysis_schema import (
     ResumeAnalysisResponse, 
     ResumeAnalysisListResponse,
     ResumeAnalysisDeleteResponse
 )
+from app.utils.pdf_utils import check_pdf
+from app.repository.resume_analysis_repository import ResumeAnalysisRepository
+from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
-import io
 
 
-class ResumeAnalysisService():
+class ResumeAnalysisService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.resume_analysis_repository = ResumeAnalysisRepository(db)
+
     async def analyze_resume_service(
-        self, file: UploadFile, current_user: User, db: AsyncSession
-    ) -> dict:
+        self, file: UploadFile, current_user: User,
+    ) -> ResumeAnalysisResponse:
         """
         Service para análise de currículo
         """
-        if not file.filename.lower().endswith(".pdf"):
-            raise HTTPException(status_code=400, detail="O arquivo deve ser um PDF")
-        
-        # Lê o conteúdo do arquivo
-        file_contents = await file.read()
-        
-        # Lê e extrai texto do PDF
-        if len(file_contents) == 0:
-            raise ValueError("O arquivo está vazio")
-
-        pdf_file = io.BytesIO(file_contents)
-        reader = PdfReader(pdf_file)
-
-        if reader.is_encrypted:
-            raise ValueError("PDF criptografado não é suportado")
-
-        text = ""
-        for page in reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
-
-        if not text.strip():
-            raise ValueError("Nenhum texto foi encontrado no PDF")
+        text = await check_pdf(file)
 
         try:
             # Analisa o currículo com Gemini
             analysis_result = await analyze_with_gemini(text)
 
+            # Valida o resultado antes de salvar
+            if not analysis_result or not isinstance(analysis_result, dict):
+                raise ValueError("Resultado da análise inválido ou vazio")
+
+            # Verifica se tem pelo menos alguns campos esperados
+            if not analysis_result.get("professional_summary") and not analysis_result.get("technical_skills"):
+                logger.warning("Resultado da análise pode estar incompleto, mas prosseguindo...")
+
             # Salva no banco
-            resume_analysis = ResumeAnalysis(
+            resume_analysis = await self.resume_analysis_repository.create(
                 user_id=current_user.id,
                 original_filename=file.filename,
                 analysis_result=analysis_result,
                 created_at=datetime.now(timezone.utc)
             )
 
-            db.add(resume_analysis)
-            await db.commit()
-            await db.refresh(resume_analysis)
+            await self.db.commit()
+            await self.db.refresh(resume_analysis)
 
             return ResumeAnalysisResponse(
-                id = resume_analysis.id,
-                original_filename=file.filename,
-                analysis_result=analysis_result,
+                id=resume_analysis.id,
+                original_filename=resume_analysis.original_filename,
+                analysis_result=resume_analysis.analysis_result,
                 created_at=resume_analysis.created_at
             )
+        
         except ValueError as e:
+            await self.db.rollback()
             raise HTTPException(status_code=400, detail=str(e))
+        except HTTPException:
+            await self.db.rollback()
+            raise
         except Exception as e:
-            await db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=500, detail=f"Erro ao processar o currículo: {str(e)}"
             )
     
     async def get_resume_analysis_service(
-        self, current_user: User, db: AsyncSession, skip: int, limit: int
-    ):
+        self, current_user: User, skip: int, limit: int
+    ) -> ResumeAnalysisListResponse:
         """
         Serviço para obter todas as análises de currículo do usuário
         """
         try:
-            result = await db.execute(
-                select(ResumeAnalysis)
-                .where(ResumeAnalysis.user_id == current_user.id)
-                .order_by(ResumeAnalysis.created_at.desc())
-                .offset(skip)
-                .limit(limit)
+            analyses, total_count = await self.resume_analysis_repository.get_by_user_id(
+                user_id=current_user.id,
+                skip=skip,
+                limit=limit
             )
-            analyses = result.scalars().all()
 
-            count_result = await db.execute(
-                select(func.count(ResumeAnalysis.id))
-                .where(ResumeAnalysis.user_id == current_user.id)
-            )
-            total_count = count_result.scalar_one()
+            if not analyses:
+                raise HTTPException(
+                    status_code=404, detail="Nenhuma análise de currículo encontrada"
+                )
 
             return ResumeAnalysisListResponse(
                 analyses=analyses,
                 total_count=total_count
             )
         
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -110,20 +99,16 @@ class ResumeAnalysisService():
             )
         
     async def get_resume_analysis_by_id_service(
-        self, analysis_id: int, current_user: User, db: AsyncSession
-    ):
+        self, analysis_id: int, current_user: User
+    ) -> ResumeAnalysisResponse:
         """
         Serviço para obter uma análise de currículo específica do usuário
         """
         try:
-            result = await db.execute(
-                select(ResumeAnalysis)
-                .where(
-                    ResumeAnalysis.id == analysis_id,
-                    ResumeAnalysis.user_id == current_user.id
-                )
+            analysis = await self.resume_analysis_repository.get_by_id_and_user_id(
+                analysis_id=analysis_id,
+                user_id=current_user.id
             )
-            analysis = result.scalar_one_or_none()
 
             if not analysis:
                 raise HTTPException(
@@ -147,20 +132,16 @@ class ResumeAnalysisService():
             )
 
     async def delete_resume_analysis_service(
-            self, analysis_id: int, current_user: User, db: AsyncSession
-    ):
+            self, analysis_id: int, current_user: User
+    ) -> ResumeAnalysisDeleteResponse:
         """
         Serviço para deletar uma análise de currículo do usuário
         """
         try:
-            result = await db.execute(
-                select(ResumeAnalysis)
-                .where(
-                    ResumeAnalysis.id == analysis_id,
-                    ResumeAnalysis.user_id == current_user.id
-                )
+            analysis = await self.resume_analysis_repository.get_by_id_and_user_id(
+                analysis_id=analysis_id,
+                user_id=current_user.id
             )
-            analysis = result.scalar_one_or_none()
 
             if not analysis:
                 raise HTTPException(
@@ -168,8 +149,9 @@ class ResumeAnalysisService():
                     detail="Análise não encontrada"
                 )
             
-            await db.delete(analysis)
-            await db.commit()
+            await self.resume_analysis_repository.delete(analysis.id)
+            
+            await self.db.commit()
 
             return ResumeAnalysisDeleteResponse(
                 message="Análise deletada com sucesso",
@@ -177,13 +159,11 @@ class ResumeAnalysisService():
             )
         
         except HTTPException:
+            await self.db.rollback()
             raise
         except Exception as e:
-            await db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro ao deletar análise: {str(e)}"
             )
-
-
-resume_analysis_service = ResumeAnalysisService()

@@ -1,6 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.utils.token_cleanup import cleanup_expired_tokens
+from app.utils.token_utils import cleanup_expired_tokens
 from app.dependencies.database import get_db_sync
+from app.core.logging_config import logger
 
 scheduler = BackgroundScheduler()
 
@@ -13,7 +14,7 @@ def scheduled_cleanup_job():
     try:
         cleanup_expired_tokens(db)
     except Exception as e:
-        print(f"Erro ao limpar tokens expirados: {e}")
+        logger.error(f"Erro ao limpar tokens expirados: {e}")
         db.rollback()
     finally:
         db.close()

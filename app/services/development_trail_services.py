@@ -1,6 +1,4 @@
 from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from app.utils.development_trail_utils import (
     create_adaptive_development_trail_prompt,
     extract_json_from_response,
@@ -9,83 +7,158 @@ from app.schemas.development_trail_schema import (
     DevelopmentTrailRequest,
     DevelopmentTrailResponse,
     DevelopmentTrailListResponse,
+    DevelopmentTrailUpdateRequest,
     DevelopmentTrailDeleteResponse
 )
 from app.models.user import User
-from app.models.development_trail import DevelopmentTrail
+from app.repository.development_trail_repository import DevelopmentTrailRepository
+from app.core.config import settings
+from app.core.logging_config import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
+from datetime import datetime, timezone
+from ..models.development_trail import DevelopmentTrailStatus
 
 
 class DevelopmentTrailService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.development_trail_repository = DevelopmentTrailRepository(db)
+
     async def generate_development_trail_with_gemini_service(
-        self, user_data: DevelopmentTrailRequest, current_user: User, db: AsyncSession
-    ) -> dict:
+        self, user_data: DevelopmentTrailRequest, current_user: User
+    ) -> DevelopmentTrailResponse:
         """Serviço que gera trilha de desenvolvimento usando Google Gemini"""
+        
+        if not settings.GEMINI_API_KEY:
+            raise HTTPException(
+                status_code=500,
+                detail="Chave da API do Gemini não configurada. Configure GEMINI_API_KEY no arquivo .env"
+            )
+        
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        
         # Cria prompt
         prompt = create_adaptive_development_trail_prompt(user_data)
 
         try:
-            model = genai.GenerativeModel("gemini-2.0-flash-001")
+            model = genai.GenerativeModel("gemini-2.5-flash")
 
             response = model.generate_content(
                 prompt,
                 generation_config=genai.types.GenerationConfig(
-                    temperature=0.3, max_output_tokens=2000, top_p=0.8, top_k=40
+                    temperature=0.3, 
+                    max_output_tokens=10000,  # Aumentado para prevenir truncamento
+                    top_p=0.8, 
+                    top_k=40
                 ),
             )
 
-            response_text = response.text.strip()
+            # Verifica se a resposta foi truncada
+            if hasattr(response.candidates[0], 'finish_reason') and response.candidates[0].finish_reason == 'MAX_OUTPUT_TOKENS':
+                logger.warning("Resposta do Gemini foi truncada devido ao limite de tokens")
 
+            response_text = response.text.strip()
+            logger.debug(f"Resposta bruta do Gemini (primeiros 500 chars): {response_text[:500]}")
+            
             development_trail_result = extract_json_from_response(response_text)
 
-            development_trail = DevelopmentTrail(
+            # Valida o resultado antes de salvar
+            if not development_trail_result or not isinstance(development_trail_result, dict):
+                raise ValueError("Resultado da trilha inválido ou vazio")
+
+            # Verifica se tem pelo menos alguns campos esperados
+            if not development_trail_result.get("user_profile_summary") and not development_trail_result.get("development_phases"):
+                logger.warning("Resultado da trilha pode estar incompleto, mas prosseguindo...")
+
+            development_trail = await self.development_trail_repository.create(
                 user_id=current_user.id,
                 development_trail=development_trail_result,
+                status=DevelopmentTrailStatus.IN_PROGRESS.value,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
             )
-
-            db.add(development_trail)
-            await db.commit()
-            await db.refresh(development_trail)
+            
+            await self.db.commit()
+            await self.db.refresh(development_trail)
 
             return DevelopmentTrailResponse(
                 id=development_trail.id,
                 development_trail=development_trail.development_trail,
+                status=development_trail.status,
+                created_at=development_trail.created_at,
+                updated_at=development_trail.updated_at
             )
 
-        except Exception as e:
-            await db.rollback()
+        except google_exceptions.ResourceExhausted as e:
+            await self.db.rollback()
+            error_msg = str(e)
+            logger.error(f"ERRO ao gerar trilha: Quota da API do Gemini excedida. {error_msg}")
+            if "quota" in error_msg.lower() or "429" in error_msg:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Limite de quota da API do Gemini excedido. Por favor, aguarde alguns minutos ou verifique sua conta na Google AI Studio."
+                )
             raise HTTPException(
                 status_code=500,
-                detail=f"Erro interno ao gerar trilha de desenvolvimento: {str(e)}",
+                detail=f"Erro de quota na API do Gemini: {error_msg}"
+            )
+            
+        except google_exceptions.InvalidArgument as e:
+            await self.db.rollback()
+            error_msg = str(e)
+            logger.error(f"ERRO ao gerar trilha: Argumento inválido. {error_msg}")
+            if "API key" in error_msg or "expired" in error_msg.lower():
+                raise HTTPException(
+                    status_code=500,
+                    detail="Chave da API do Gemini inválida ou expirada. Verifique a configuração no arquivo .env"
+                )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro na chamada da API do Gemini: {error_msg}"
+            )
+            
+        except ValueError as e:
+            await self.db.rollback()
+            raise HTTPException(status_code=400, detail=str(e))
+            
+        except HTTPException:
+            await self.db.rollback()
+            raise
+            
+        except Exception as e:
+            await self.db.rollback()
+            error_msg = str(e)
+            logger.error(f"ERRO ao gerar trilha: {error_msg}")
+            if "API key" in error_msg or "expired" in error_msg.lower():
+                raise HTTPException(
+                    status_code=500,
+                    detail="Chave da API do Gemini inválida ou expirada. Verifique a configuração no arquivo .env"
+                )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro interno ao gerar trilha de desenvolvimento: {error_msg}"
             )
         
     async def get_development_trail_service(
-        self, current_user: User, db: AsyncSession, skip: int, limit: int
-    ):
+        self, current_user: User, skip: int, limit: int
+    ) -> DevelopmentTrailListResponse:
         """
         Serviço que retorna todas as trilhas de desenvolvimento do usuário
         """
         try:
-            result = await db.execute(
-                select(DevelopmentTrail)
-                .where(DevelopmentTrail.user_id == current_user.id)
-                .order_by(DevelopmentTrail.created_at.desc())
-                .offset(skip)
-                .limit(limit)
-            )
-            development_trails = result.scalars().all() 
+            development_trails, total_count = await self.development_trail_repository.get_by_user_id(
+                user_id=current_user.id,
+                skip=skip,
+                limit=limit
+            ) 
 
             if not development_trails:
                 raise HTTPException(
                     status_code=404, detail="Nenhuma trilha de desenvolvimento encontrada"
                 )
-
-            count_result = await db.execute(
-                select(func.count(DevelopmentTrail.id))
-                .where(DevelopmentTrail.user_id == current_user.id)
-            )
-            total_count = count_result.scalar_one()
-
+            
             return DevelopmentTrailListResponse(
                 development_trails=development_trails, 
                 total_count=total_count
@@ -100,20 +173,16 @@ class DevelopmentTrailService:
             )
 
     async def get_development_trail_by_id_service(
-        self, development_trail_id: int, current_user: User, db: AsyncSession
-    ):
+        self, development_trail_id: int, current_user: User
+    ) -> DevelopmentTrailResponse:
         """
-        Serviço que retorna uma trlha de desenvolvimento específica do usuário
+        Serviço que retorna uma trilha de desenvolvimento específica do usuário
         """
         try:
-            result = await db.execute(
-                select(DevelopmentTrail)
-                .where(
-                    DevelopmentTrail.id == development_trail_id,
-                    DevelopmentTrail.user_id == current_user.id
-                )
-            )
-            development_trail = result.scalar_one_or_none() 
+            development_trail = await self.development_trail_repository.get_by_id_and_user_id(
+                development_trail_id=development_trail_id,
+                user_id=current_user.id
+            ) 
 
             if not development_trail:
                 raise HTTPException(
@@ -124,6 +193,9 @@ class DevelopmentTrailService:
             return DevelopmentTrailResponse(
                 id=development_trail.id,
                 development_trail=development_trail.development_trail,
+                status=development_trail.status,
+                created_at=development_trail.created_at,
+                updated_at=development_trail.updated_at
             )
         
         except HTTPException:
@@ -134,29 +206,71 @@ class DevelopmentTrailService:
                 detail=f"Erro ao buscar trilha de desenvolvimento: {str(e)}"
             )
         
+    async def update_development_trail_status_service(
+        self,
+        development_trail_id: int,
+        update_data: DevelopmentTrailUpdateRequest,
+        current_user: User
+    ) -> DevelopmentTrailResponse:
+        """
+        Serviço para atualizar o status de uma trilha de desenvolvimento
+        """
+        try:
+            development_trail = await self.development_trail_repository.get_by_id_and_user_id(
+                development_trail_id=development_trail_id,
+                user_id=current_user.id
+            )
+
+            if not development_trail:
+                raise HTTPException(
+                    status_code=404, detail="Trilha de desenvolvimento não encontrada"
+                )
+
+            # Atualizar o status
+            updated_trail = await self.development_trail_repository.update_status(
+                development_trail_id=development_trail_id,
+                status=update_data.status.value
+            )
+            
+            await self.db.commit()
+            await self.db.refresh(updated_trail)
+
+            return DevelopmentTrailResponse(
+                id=updated_trail.id,
+                development_trail=updated_trail.development_trail,
+                status=updated_trail.status,
+                created_at=updated_trail.created_at,
+                updated_at=updated_trail.updated_at
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao atualizar status da trilha de desenvolvimento: {str(e)}"
+            )
+        
     async def delete_development_trail_service(
-        self, development_trail_id: int, current_user: User, db: AsyncSession
-    ):
+        self, development_trail_id: int, current_user: User
+    ) -> DevelopmentTrailDeleteResponse:
         """
         Serviço para deletar uma trilha de desenvolvimento do usuário
         """
         try:
-            result = await db.execute(
-                select(DevelopmentTrail)
-                .where(
-                    DevelopmentTrail.id == development_trail_id,
-                    DevelopmentTrail.user_id == current_user.id
-                )
+            development_trail = await self.development_trail_repository.get_by_id_and_user_id(
+                development_trail_id=development_trail_id,
+                user_id=current_user.id
             )
-            development_trail = result.scalar_one_or_none()
 
             if not development_trail:
                 raise HTTPException(
                     status_code=404, detail="Trilha de desenvolvimento não encontrada"
                 )
             
-            await db.delete(development_trail)
-            await db.commit()
+            await self.development_trail_repository.delete(development_trail_id)
+            await self.db.commit()
 
             return DevelopmentTrailDeleteResponse(
                 message="Trilha de desenvolvimento deletada com sucesso",
@@ -166,11 +280,8 @@ class DevelopmentTrailService:
         except HTTPException:
             raise
         except Exception as e:
-            await db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=500,
                 detail=f"Erro ao deletar trilha de desenvolvimento: {str(e)}"
             )
-
-
-development_trail_service = DevelopmentTrailService()

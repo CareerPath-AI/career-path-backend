@@ -1,11 +1,16 @@
 from app.core.config import settings
+from app.core.logging_config import logger
 import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 import re
 import json
 
 
 async def generate_interview_guide_with_gemini(resume_text: str, job_description: str) -> dict:
     """Gera um roteiro de entrevista personalizado usando Google Gemini"""
+    
+    if not settings.GEMINI_API_KEY:
+        raise ValueError("Chave da API do Gemini não configurada. Configure GEMINI_API_KEY no arquivo .env")
     
     genai.configure(api_key=settings.GEMINI_API_KEY)
     
@@ -82,59 +87,93 @@ async def generate_interview_guide_with_gemini(resume_text: str, job_description
     - MANTENHA O FORMATO EXATO ACIMA
     """
 
-    model = genai.GenerativeModel('gemini-2.0-flash-001')
-    
-    full_prompt = f"""
-    {prompt}
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        full_prompt = f"""
+        {prompt}
 
-    CURRÍCULO:
-    {truncated_resume}
+        CURRÍCULO:
+        {truncated_resume}
 
-    DESCRIÇÃO DA VAGA:
-    {truncated_job_desc}
+        DESCRIÇÃO DA VAGA:
+        {truncated_job_desc}
 
-    RESPOSTA (APENAS JSON):
-    """
-    
-    response = model.generate_content(
-        full_prompt,
-        generation_config=genai.types.GenerationConfig(
-            temperature=0.2,
-            max_output_tokens=4000,
-            top_p=0.7,
-            top_k=40
+        RESPOSTA (APENAS JSON):
+        """
+        
+        response = model.generate_content(
+            full_prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.2,
+                max_output_tokens=10000,  # Aumentado para prevenir truncamento
+                top_p=0.7,
+                top_k=40
+            )
         )
-    )
-    
-    response_text = response.text.strip()
-    print(f"Resposta bruta do Gemini: {response_text}")
-    
-    # Extrai JSON da resposta
-    parsed_response = extract_interview_json_from_text(response_text)
-    
-    return parsed_response
+        
+        # Verifica se a resposta foi truncada
+        if hasattr(response.candidates[0], 'finish_reason') and response.candidates[0].finish_reason == 'MAX_OUTPUT_TOKENS':
+            logger.warning("Resposta do Gemini foi truncada devido ao limite de tokens")
+        
+        response_text = response.text.strip()
+        logger.debug(f"Resposta bruta do Gemini (primeiros 500 chars): {response_text[:500]}")
+        
+        # Extrai JSON da resposta
+        parsed_response = extract_interview_json_from_text(response_text)
+        
+        return parsed_response
+        
+    except google_exceptions.ResourceExhausted as e:
+        error_msg = str(e)
+        logger.error(f"ERRO ao gerar guia: Quota da API do Gemini excedida. {error_msg}")
+        if "quota" in error_msg.lower() or "429" in error_msg:
+            raise ValueError(
+                "Limite de quota da API do Gemini excedido. Por favor, aguarde alguns minutos ou verifique sua conta na Google AI Studio."
+            )
+        raise ValueError(f"Erro de quota na API do Gemini: {error_msg}")
+        
+    except google_exceptions.InvalidArgument as e:
+        error_msg = str(e)
+        logger.error(f"ERRO ao gerar guia: Argumento inválido. {error_msg}")
+        if "API key" in error_msg or "expired" in error_msg.lower():
+            raise ValueError(
+                "Chave da API do Gemini inválida ou expirada. Verifique a configuração no arquivo .env"
+            )
+        raise ValueError(f"Erro na chamada da API do Gemini: {error_msg}")
+        
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"ERRO ao gerar guia: {error_msg}")
+        if "API key" in error_msg or "expired" in error_msg.lower():
+            raise ValueError(
+                "Chave da API do Gemini inválida ou expirada. Verifique a configuração no arquivo .env"
+            )
+        raise ValueError(f"Erro ao gerar guia de entrevista: {error_msg}")
 
 
 def extract_interview_json_from_text(text: str) -> dict:
     """
     Extrai JSON de texto que pode conter markdown ou outros elementos
+    Tenta reparar JSON truncado se possível
     """
     if not text:
         raise ValueError("Texto vazio não pode ser convertido para JSON")
     
     # Limpa o texto - remove code blocks markdown
     cleaned_text = text.strip()
-    cleaned_text = re.sub(r'^```json\s*', '', cleaned_text)
+    cleaned_text = re.sub(r'^```json\s*', '', cleaned_text, flags=re.IGNORECASE)
+    cleaned_text = re.sub(r'^```\s*', '', cleaned_text)
     cleaned_text = re.sub(r'\s*```$', '', cleaned_text)
     cleaned_text = cleaned_text.strip()
     
-    print(f"Texto limpo para extração JSON: {cleaned_text[:500]}...")  # Debug
+    logger.debug(f"Texto limpo para extração JSON (primeiros 300 chars): {cleaned_text[:300]}")
     
     try:
         # Tenta parsear diretamente como JSON
         return json.loads(cleaned_text)
     except json.JSONDecodeError as e:
-        print(f"Erro no parse JSON direto: {e}")
+        logger.error(f"Erro no parse JSON direto: {e}")
         
         # Tenta encontrar JSON dentro do texto usando regex
         json_pattern = r'\{.*\}'
@@ -143,14 +182,112 @@ def extract_interview_json_from_text(text: str) -> dict:
         if matches:
             # Pega o maior match (provavelmente o JSON completo)
             json_str = max(matches, key=len)
-            print(f"JSON encontrado via regex: {json_str[:500]}...")  # Debug
+            logger.debug(f"JSON encontrado via regex (primeiros 300 chars): {json_str[:300]}")
             try:
                 return json.loads(json_str)
             except json.JSONDecodeError as e2:
-                print(f"Erro no parse do JSON regex: {e2}")
+                logger.error(f"Erro no parse do JSON regex: {e2} (posição: {e2.pos if hasattr(e2, 'pos') else 'desconhecida'})")
+                
+                # Tenta reparar JSON truncado
+                try:
+                    repaired_json = repair_truncated_json(json_str, e2)
+                    if repaired_json:
+                        return json.loads(repaired_json)
+                except Exception as repair_error:
+                    logger.error(f"Falha ao reparar JSON: {repair_error}")
+                    
+                    # Última tentativa: tenta extrair um JSON parcial válido
+                    try:
+                        partial_json = extract_partial_valid_json(json_str, e2)
+                        if partial_json:
+                            logger.warning("Usando JSON parcial extraído devido a erro de parsing")
+                            return partial_json
+                    except Exception as partial_error:
+                        logger.error(f"Falha ao extrair JSON parcial: {partial_error}")
         
         # Se nada funcionar, levanta exceção
-        raise ValueError(f"Não foi possível extrair JSON válido do texto: {text[:500]}")
+        raise ValueError(f"Não foi possível extrair JSON válido do texto. Erro: {str(e)}")
+
+
+def extract_partial_valid_json(json_str: str, error: json.JSONDecodeError) -> dict:
+    """
+    Tenta extrair um JSON parcialmente válido mesmo quando há erros
+    Usa o JSONDecoder para parsear até onde for possível
+    """
+    try:
+        decoder = json.JSONDecoder()
+        # Tenta parsear até a posição do erro
+        if hasattr(error, 'pos') and error.pos > 0:
+            # Trunca no ponto do erro e tenta parsear o que for possível
+            truncated = json_str[:error.pos].rstrip()
+            # Remove o último caractere problemático e tenta fechar estruturas
+            while truncated and truncated[-1] in ['"', ',', ':', '{', '[', ' ']:
+                truncated = truncated[:-1].rstrip()
+            # Fecha estruturas não fechadas
+            truncated = repair_truncated_json(truncated, None)
+            if truncated:
+                return json.loads(truncated)
+    except Exception:
+        pass
+    return None
+
+
+def repair_truncated_json(json_str: str, error: json.JSONDecodeError = None) -> str:
+    """
+    Tenta reparar JSON truncado ou com erros de sintaxe
+    Se um erro específico for fornecido, usa a posição do erro para ajudar no reparo
+    """
+    repaired = json_str.strip()
+    
+    # Se temos informação sobre o erro, usa para guiar o reparo
+    error_pos = None
+    if error and hasattr(error, 'pos'):
+        error_pos = error.pos
+        logger.debug(f"Tentando reparar JSON na posição do erro: {error_pos}")
+    
+    # Passo 1: Se temos posição do erro, tenta truncar e fechar estruturas nesse ponto
+    if error_pos and error_pos > 0:
+        # Tenta truncar antes da posição do erro e fechar estruturas
+        truncated = repaired[:error_pos].rstrip()
+        # Remove caracteres problemáticos do final
+        while truncated and truncated[-1] in [',', ':', '"']:
+            truncated = truncated[:-1].rstrip()
+        repaired = truncated
+    
+    # Passo 2: Repara strings não terminadas
+    if repaired.count('"') % 2 != 0:
+        last_quote_idx = repaired.rfind('"')
+        if last_quote_idx > 0:
+            remaining = repaired[last_quote_idx+1:].strip()
+            if remaining and not any(c in remaining for c in [':', ',', '}', ']']):
+                repaired = repaired[:last_quote_idx+1] + '"' + repaired[last_quote_idx+1:]
+    
+    # Passo 3: Conta e fecha estruturas não fechadas
+    open_braces = repaired.count('{')
+    close_braces = repaired.count('}')
+    open_brackets = repaired.count('[')
+    close_brackets = repaired.count(']')
+    
+    # Fecha objetos não fechados
+    for _ in range(open_braces - close_braces):
+        repaired += '}'
+    # Fecha arrays não fechados
+    for _ in range(open_brackets - close_brackets):
+        repaired += ']'
+    
+    # Passo 4: Remove vírgulas finais desnecessárias antes de fechamentos
+    repaired = re.sub(r',\s*}', '}', repaired)
+    repaired = re.sub(r',\s*]', ']', repaired)
+    
+    # Passo 5: Adiciona vírgulas faltantes em padrões comuns
+    # Entre strings consecutivas em arrays/objetos
+    repaired = re.sub(r'"\s*\n\s*"', '",\n"', repaired)  # Adiciona vírgula entre strings em múltiplas linhas
+    repaired = re.sub(r'}\s*"', '}, "', repaired)  # Vírgula entre objeto e string
+    repaired = re.sub(r']\s*"', '], "', repaired)  # Vírgula entre array e string
+    repaired = re.sub(r'"\s*{', '", {', repaired)  # Vírgula entre string e objeto
+    repaired = re.sub(r'"\s*\[', '", [', repaired)  # Vírgula entre string e array
+    
+    return repaired
 
 
 # Função auxiliar para detectar skills (se ainda precisar)

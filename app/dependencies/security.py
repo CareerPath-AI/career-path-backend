@@ -5,10 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.core.security import is_token_blacklisted
 from app.dependencies.database import get_db
-from jose import jwt, JWTError
-from app.core.config import settings
+from app.utils.token_utils import decode_jwt_token
+from jose import JWTError
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login-form")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login-form")
 
 
 async def verify_token(
@@ -22,10 +23,9 @@ async def verify_token(
                 detail="Token revoked"
             )
         
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
+        payload = decode_jwt_token(token)
         user_id: str = payload.get("sub")
+
         if user_id is None:
             raise HTTPException(
                 status_code=401,
@@ -45,4 +45,3 @@ async def verify_token(
             headers={"WWW-Authenticate": "Bearer"}
         )
     return user
-    
