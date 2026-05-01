@@ -5,3 +5,7 @@
 *.pyc
 *logs/
 *.log
+agents.md
+development_trail_upgrade.md
+career_path_backend.md
+SECURITY_AUDIT_REPORT.md

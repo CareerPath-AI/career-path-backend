@@ -10,16 +10,14 @@ def create_adaptive_development_trail_prompt(user_data: DevelopmentTrailRequest)
     # Calcula meses totais baseado no timeframe
     total_months = calculate_timeframe_months(user_data.goal_timeframe)
 
-    # Define estrutura de fases baseada no tempo disponível
-    phases_structure = get_phases_structure(total_months)
+    # Calcula número total de sprints baseado no tempo disponível
+    total_sprints = get_sprints_structure(total_months)
 
     return f"""
 Você é um especialista em desenvolvimento de carreira em tecnologia. 
 Analise os dados do usuário e retorne APENAS um objeto JSON válido, sem nenhum texto adicional.
 
 **DADOS DO USUÁRIO:**
-- Nome: {user_data.name}
-- Idade: {user_data.age or "Não informada"}
 - Formação: {user_data.education or "Não informada"}
 - Área Atual: {user_data.current_area or "Não informada"}
 - Experiência: {user_data.experience_in_years or 0} anos
@@ -31,28 +29,51 @@ Analise os dados do usuário e retorne APENAS um objeto JSON válido, sem nenhum
 - Prazo para Objetivo: {user_data.goal_timeframe or "Não informado"}
 - Informações Adicionais: {user_data.additional_information or "Nenhuma"}
 
-**ESTRUTURA ADAPTATIVA ({total_months} meses):**
-{phases_structure}
+**ESTRUTURA ADAPTATIVA:**
+Total de Sprints a gerar: {total_sprints} sprints de 15 dias cada.
 
 **FORMATO EXATO DO JSON:**
 
 {{
     "user_profile_summary": {{
-        "current_profile": "Resumo do perfil atual em 2-3 frases",
+        "current_profile": "Resumo de 2-3 frases SEM nome ou idade",
         "strengths": ["ponto forte 1", "ponto forte 2", "ponto forte 3"],
         "improvement_areas": ["área de melhoria 1", "área de melhoria 2"]
     }},
-    "development_phases": [
+    "trail_metadata": {{
+        "total_sprints": {total_sprints},
+        "total_duration_days": {total_sprints * 15},
+        "difficulty_progression": "iniciante → intermediário",
+        "focus_technologies": ["Tecnologia 1", "Tecnologia 2"]
+    }},
+    "sprints": [
         {{
-            "phase": "NOME_DA_FASE",
-            "duration": "X-Y semanas/meses",
-            "focus": "Foco principal desta fase",
-            "topics": ["tópico 1", "tópico 2", "tópico 3"],
-            "resources": ["recurso 1", "recurso 2"],
-            "projects": ["projeto prático 1", "projeto prático 2"],
-            "learning_outcomes": ["resultado 1", "resultado 2"]
+            "sprint_number": 1,
+            "title": "Título resumindo o foco da sprint",
+            "duration": "15 dias",
+            "days": [
+                {{
+                    "day": 1,
+                    "topic": "Título específico do tópico",
+                    "description": "Breve explicação do que será estudado neste dia",
+                    "study_type": "theory | practice | review"
+                }}
+            ],
+            "practical_exercises": [
+                {{
+                    "title": "Título do exercício",
+                    "description": "Instruções claras sobre o que construir ou resolver",
+                    "difficulty": "beginner | intermediate | advanced"
+                }}
+            ],
+            "sprint_goal": "O que o estudante deve ser capaz de fazer ao final desta sprint",
+            "revision_project": {{
+                "title": "Título do projeto",
+                "description": "Projeto prático que reforça tópicos das sprints anteriores",
+                "covers_sprints": [1, 2],
+                "estimated_hours": 6
+            }}
         }}
-        // REPETIR PARA CADA FASE DEFINIDA NA ESTRUTURA
     ],
     "recommended_resources": {{
         "courses": ["curso 1", "curso 2", "curso 3"],
@@ -60,14 +81,6 @@ Analise os dados do usuário e retorne APENAS um objeto JSON válido, sem nenhum
         "communities": ["comunidade 1", "comunidade 2"],
         "books": ["livro 1", "livro 2"]
     }},
-    "milestones": [
-        {{
-            "timeline": "Mês X/Final da Fase Y",
-            "goals": ["meta específica 1", "meta específica 2"],
-            "success_indicators": ["indicador 1", "indicador 2"]
-        }}
-        // ADAPTAR OS MILESTONES À DURAÇÃO TOTAL
-    ],
     "career_tips": [
         "dica prática 1",
         "dica prática 2", 
@@ -75,15 +88,14 @@ Analise os dados do usuário e retorne APENAS um objeto JSON válido, sem nenhum
         "dica prática 4"
     ],
     "study_plan_adaptation": {{
-        "for_busy_schedule": "{user_data.available_time_week}",
-        "weekly_recommendation": "Recomendação de estudo semanal adaptada",
+        "weekly_recommendation": "Recomendação de estudo semanal adaptada considerando {user_data.available_time_week}",
         "acceleration_tips": ["Dica para acelerar 1", "Dica para acelerar 2"]
     }}
 }}
 
 **INSTRUÇÕES ADAPTATIVAS:**
 
-DURAÇÃO TOTAL: {total_months} MESES
+DURAÇÃO TOTAL: {total_months} MESES ({total_sprints} SPRINTS)
 - Se {total_months} <= 3 meses: Foque em objetivos imediatos e habilidades essenciais
 - Se 4 <= {total_months} <= 6 meses: Inclua fundamentos + especialização básica  
 - Se {total_months} >= 7 meses: Crie um plano completo com múltiplas fases de aprofundamento
@@ -99,11 +111,16 @@ NÍVEL: {user_data.current_level or "Não especificado"}
 - Avançado: Foque em tópicos avançados e projetos complexos
 
 **REGRAS ESTRITAS:**
-1. BASEIE-SE APENAS NAS INFORMAÇÕES FORNECIDAS
-2. SEJA REALISTA com o tempo disponível
+1. BASEIE-SE APENAS NAS INFORMAÇÕES FORNECIDAS. NUNCA mencione o nome ou idade do usuário.
+2. SEJA REALISTA com o tempo disponível.
 3. PRIORIZE as tecnologias de interesse: {user_data.interested_technologies or "Todas"}
-4. ADAPTE a complexidade ao nível do usuário
-5. INCLUA projetos PRÁTICOS em cada fase
+4. ADAPTE a complexidade ao nível do usuário.
+5. CRIE EXATAMENTE {total_sprints} SPRINTS.
+6. CADA SPRINT DEVE CONTER EXATAMENTE 15 DIAS DE ESTUDO com tópicos distintos e focados.
+7. Tópicos muito amplos devem ser divididos em múltiplas sprints.
+8. INCLUA NO MÍNIMO 2 EXERCÍCIOS PRÁTICOS EM CADA SPRINT.
+9. O campo revision_project é OBRIGATÓRIO a partir da sprint 3 e opcional nas sprints 1 e 2.
+10. RETORNE APENAS JSON VÁLIDO. NÃO INCLUA comentários do tipo // ou blocos de texto fora do JSON.
 """
 
 
@@ -131,33 +148,12 @@ def calculate_timeframe_months(timeframe: str) -> int:
         return 6 
 
 
-def get_phases_structure(total_months: int) -> str:
-    """Retorna a estrutura de fases baseada na duração total"""
-
-    if total_months <= 3:
-        return """
-        FASE ÚNICA ({} meses): Desenvolvimento Acelerado
-        - Foco: Objetivos imediatos e habilidades mais críticas
-        - Projetos: Pequenos e focados
-        - Entrega: MVP do conhecimento necessário
-        """.format(total_months)
-
-    elif total_months <= 6:
-        return """
-        FASE 1 (2-3 meses): Fundamentos Sólidos
-        FASE 2 ({} meses): Especialização Prática
-        - Balance entre teoria e prática
-        - Projetos intermediários
-        """.format(total_months - 2)
-
-    else:  # 7+ meses
-        return """
-        FASE 1 (2-3 meses): Fundamentos Avançados
-        FASE 2 (3-4 meses): Especialização Técnica  
-        FASE 3 ({} meses): Aprofundamento e Projetos Complexos
-        - Abordagem completa e aprofundada
-        - Projetos de portfólio robustos
-        """.format(total_months - 5)
+def get_sprints_structure(total_months: int) -> int:
+    """Calcula o número total de sprints baseado na duração total"""
+    # Fórmula de cálculo: (meses * 30 dias) / 15 dias por sprint
+    total_sprints = (total_months * 30) // 15
+    # Limita a 6 sprints (90 dias) para evitar truncamento por limite de tokens
+    return min(total_sprints, 6)
 
 
 def extract_json_from_response(response_text: str) -> dict:
@@ -165,11 +161,12 @@ def extract_json_from_response(response_text: str) -> dict:
     if not response_text:
         raise ValueError("Texto vazio não pode ser convertido para JSON")
     
-    # Limpa o texto - remove code blocks markdown
+    # Limpa o texto - remove code blocks markdown e comentários inline
     cleaned_text = response_text.strip()
     cleaned_text = re.sub(r'^```json\s*', '', cleaned_text, flags=re.IGNORECASE)
     cleaned_text = re.sub(r'^```\s*', '', cleaned_text)
     cleaned_text = re.sub(r'\s*```$', '', cleaned_text)
+    cleaned_text = re.sub(r'(?m)^\s*//.*$', '', cleaned_text) # Remove comentários // em inícios de linha
     cleaned_text = cleaned_text.strip()
     
     logger.debug(f"Texto limpo para extração JSON (primeiros 300 chars): {cleaned_text[:300]}")
