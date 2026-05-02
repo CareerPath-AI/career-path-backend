@@ -49,9 +49,10 @@ class DevelopmentTrailService:
                 prompt,
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.3, 
-                    max_output_tokens=10000,  # Aumentado para prevenir truncamento
+                    max_output_tokens=8192,  # Limite máximo real do flash
                     top_p=0.8, 
-                    top_k=40
+                    top_k=40,
+                    response_mime_type="application/json"
                 ),
             )
 

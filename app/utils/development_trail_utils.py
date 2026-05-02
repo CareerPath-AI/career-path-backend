@@ -152,8 +152,8 @@ def get_sprints_structure(total_months: int) -> int:
     """Calcula o número total de sprints baseado na duração total"""
     # Fórmula de cálculo: (meses * 30 dias) / 15 dias por sprint
     total_sprints = (total_months * 30) // 15
-    # Limita a 6 sprints (90 dias) para evitar truncamento por limite de tokens
-    return min(total_sprints, 6)
+    # Limita a 3 sprints (45 dias detalhados dia a dia) para garantir que NUNCA estoure os 8192 tokens
+    return min(total_sprints, 3)
 
 
 def extract_json_from_response(response_text: str) -> dict:
